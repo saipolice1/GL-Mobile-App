@@ -1,0 +1,285 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+
+/**
+ * Visitor Tracking Service
+ * 
+ * NOTE: Wix Headless SDK with OAuth (visitor tokens) does NOT have access to:
+ * - Contacts API (requires elevated permissions)
+ * - Activities API (requires elevated permissions)
+ * - Real-time visitor tracking on Wix Dashboard
+ * 
+ * What DOES work for visitor notifications in Wix:
+ * 1. Cart activities - You see when visitors add items to cart (via Wix Stores)
+ * 2. Order notifications - You get notified when orders are placed
+ * 3. Form submissions - If you set up a Wix Form
+ * 
+ * This service tracks locally and can sync data when:
+ * - User places an order (data goes into order notes)
+ * - User creates an account (data goes into member profile)
+ */
+
+const VISITOR_STORAGE_KEY = '@grafton_visitor_id';
+const ACTIVITY_STORAGE_KEY = '@grafton_visitor_activity';
+const SESSION_KEY = '@grafton_session_data';
+
+// Generate a unique visitor ID
+const generateVisitorId = () => {
+  return `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Get or create visitor ID
+export async function getVisitorId() {
+  try {
+    let visitorId = await AsyncStorage.getItem(VISITOR_STORAGE_KEY);
+    if (!visitorId) {
+      visitorId = generateVisitorId();
+      await AsyncStorage.setItem(VISITOR_STORAGE_KEY, visitorId);
+    }
+    return visitorId;
+  } catch (error) {
+    console.error('Error getting visitor ID:', error);
+    return generateVisitorId();
+  }
+}
+
+// Get device info for tracking
+export function getDeviceInfo() {
+  return {
+    platform: Platform.OS,
+    brand: Device.brand || 'Unknown',
+    modelName: Device.modelName || 'Unknown',
+    osVersion: String(Platform.Version),
+    isDevice: Device.isDevice,
+  };
+}
+
+// Activity types
+export const ACTIVITY_TYPES = {
+  PAGE_VIEW: 'page_view',
+  PRODUCT_VIEW: 'product_view',
+  ADD_TO_CART: 'add_to_cart',
+  REMOVE_FROM_CART: 'remove_from_cart',
+  SEARCH: 'search',
+  CATEGORY_VIEW: 'category_view',
+  CHECKOUT_START: 'checkout_start',
+  CHECKOUT_COMPLETE: 'checkout_complete',
+  APP_OPEN: 'app_open',
+  APP_CLOSE: 'app_close',
+};
+
+/**
+ * Track visitor activity - stores locally
+ * This data can be synced with orders for analytics
+ */
+export async function trackActivity(activityType, data = {}) {
+  try {
+    const visitorId = await getVisitorId();
+    const deviceInfo = getDeviceInfo();
+    
+    const activity = {
+      id: `act_${Date.now()}`,
+      visitorId,
+      type: activityType,
+      data,
+      timestamp: new Date().toISOString(),
+      device: deviceInfo,
+    };
+    
+    console.log('📊 Tracking:', activity.type, data.productName || data.page || '');
+    
+    // Store activity locally
+    await storeActivityLocally(activity);
+    
+    // Update session data for potential order sync
+    await updateSessionData(activityType, data);
+    
+    return activity;
+  } catch (error) {
+    console.error('Error tracking activity:', error);
+    return null;
+  }
+}
+
+/**
+ * Update session data that can be attached to orders
+ */
+async function updateSessionData(activityType, data) {
+  try {
+    const existing = await AsyncStorage.getItem(SESSION_KEY);
+    const session = existing ? JSON.parse(existing) : {
+      startTime: new Date().toISOString(),
+      viewedProducts: [],
+      searchQueries: [],
+      cartActions: [],
+    };
+    
+    // Track viewed products
+    if (activityType === ACTIVITY_TYPES.PRODUCT_VIEW && data.productName) {
+      if (!session.viewedProducts.includes(data.productName)) {
+        session.viewedProducts.push(data.productName);
+        // Keep only last 10
+        if (session.viewedProducts.length > 10) {
+          session.viewedProducts.shift();
+        }
+      }
+    }
+    
+    // Track searches
+    if (activityType === ACTIVITY_TYPES.SEARCH && data.query) {
+      if (!session.searchQueries.includes(data.query)) {
+        session.searchQueries.push(data.query);
+        if (session.searchQueries.length > 5) {
+          session.searchQueries.shift();
+        }
+      }
+    }
+    
+    // Track cart actions
+    if (activityType === ACTIVITY_TYPES.ADD_TO_CART) {
+      session.cartActions.push({
+        action: 'add',
+        product: data.productName,
+        time: new Date().toISOString(),
+      });
+      if (session.cartActions.length > 20) {
+        session.cartActions.shift();
+      }
+    }
+    
+    session.lastActivity = new Date().toISOString();
+    
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch (error) {
+    console.error('Error updating session:', error);
+  }
+}
+
+/**
+ * Get session data - can be attached to order notes
+ */
+export async function getSessionData() {
+  try {
+    const existing = await AsyncStorage.getItem(SESSION_KEY);
+    return existing ? JSON.parse(existing) : null;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return null;
+  }
+}
+
+/**
+ * Get session summary for order notes
+ */
+export async function getSessionSummary() {
+  const session = await getSessionData();
+  if (!session) return '';
+  
+  const parts = [];
+  
+  if (session.viewedProducts.length > 0) {
+    parts.push(`Viewed: ${session.viewedProducts.slice(0, 3).join(', ')}`);
+  }
+  
+  if (session.searchQueries.length > 0) {
+    parts.push(`Searched: ${session.searchQueries.join(', ')}`);
+  }
+  
+  return parts.join(' | ');
+}
+
+/**
+ * Clear session data (call after order completion)
+ */
+export async function clearSessionData() {
+  try {
+    await AsyncStorage.removeItem(SESSION_KEY);
+  } catch (error) {
+    console.error('Error clearing session:', error);
+  }
+}
+
+// Store activity locally for analytics
+async function storeActivityLocally(activity) {
+  try {
+    const existing = await AsyncStorage.getItem(ACTIVITY_STORAGE_KEY);
+    const activities = existing ? JSON.parse(existing) : [];
+    
+    activities.push(activity);
+    
+    // Keep last 100 activities
+    if (activities.length > 100) {
+      activities.shift();
+    }
+    
+    await AsyncStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(activities));
+  } catch (error) {
+    console.error('Error storing activity:', error);
+  }
+}
+
+// Get stored activities
+export async function getStoredActivities() {
+  try {
+    const existing = await AsyncStorage.getItem(ACTIVITY_STORAGE_KEY);
+    return existing ? JSON.parse(existing) : [];
+  } catch (error) {
+    console.error('Error getting stored activities:', error);
+    return [];
+  }
+}
+
+// Clear stored activities
+export async function clearStoredActivities() {
+  try {
+    await AsyncStorage.removeItem(ACTIVITY_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error clearing activities:', error);
+  }
+}
+
+// Convenience tracking functions
+export const trackPageView = (pageName, params = {}) => 
+  trackActivity(ACTIVITY_TYPES.PAGE_VIEW, { page: pageName, ...params });
+
+export const trackProductView = (product) => 
+  trackActivity(ACTIVITY_TYPES.PRODUCT_VIEW, { 
+    productId: product._id || product.id,
+    productName: product.name,
+    price: product.priceData?.price,
+    category: product.collectionIds?.[0],
+  });
+
+export const trackAddToCart = (product, quantity = 1) => 
+  trackActivity(ACTIVITY_TYPES.ADD_TO_CART, { 
+    productId: product._id || product.id,
+    productName: product.name,
+    price: product.priceData?.price,
+    quantity,
+  });
+
+export const trackRemoveFromCart = (product, quantity = 1) => 
+  trackActivity(ACTIVITY_TYPES.REMOVE_FROM_CART, { 
+    productId: product._id || product.id,
+    productName: product.name,
+    quantity,
+  });
+
+export const trackSearch = (query, resultsCount = 0) => 
+  trackActivity(ACTIVITY_TYPES.SEARCH, { query, resultsCount });
+
+export const trackCategoryView = (categorySlug, categoryName) => 
+  trackActivity(ACTIVITY_TYPES.CATEGORY_VIEW, { categorySlug, categoryName });
+
+export const trackCheckoutStart = (cartTotal, itemCount) => 
+  trackActivity(ACTIVITY_TYPES.CHECKOUT_START, { cartTotal, itemCount });
+
+export const trackCheckoutComplete = (orderId, orderTotal, itemCount) => 
+  trackActivity(ACTIVITY_TYPES.CHECKOUT_COMPLETE, { orderId, orderTotal, itemCount });
+
+export const trackAppOpen = () => 
+  trackActivity(ACTIVITY_TYPES.APP_OPEN, {});
+
+export const trackAppClose = () => 
+  trackActivity(ACTIVITY_TYPES.APP_CLOSE, {});

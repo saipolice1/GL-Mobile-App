@@ -1,0 +1,7 @@
+env: load .env
+env: export EXPO_PUBLIC_DISPLAY_COLLECTIONS_SLUGS EXPO_PUBLIC_NEW_COLLECTION_SLUG EXPO_PUBLIC_STORE_URL
+Starting project at /Users/saipolice/Desktop/GL App/graftonliquor
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8081
+Logs for your project will appear below.
