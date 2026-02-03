@@ -14,6 +14,11 @@ const HorizontalProductCard = ({ product, onPress }) => {
   const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
   const isOutOfStock = stockQuantity === 0 || !inStock;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+
+  // LOW STOCK takes priority - never show both badges
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock && !isLowStock;
 
   return (
     <TouchableOpacity 
@@ -41,19 +46,27 @@ const HorizontalProductCard = ({ product, onPress }) => {
             </View>
           </View>
         )}
-        {isLowStock && !isOutOfStock && (
+        {/* Low Stock Badge - Priority over Trending */}
+        {showLowStock && (
           <View style={styles.lowStockBadge}>
             <View style={styles.lowStockDot} />
             <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
           </View>
         )}
+        {/* Trending Badge - Only if NOT low stock */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        {/* Improved Add Button */}
         {!isOutOfStock && (
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => onPress(product)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={16} color="#FFF" />
+            <Ionicons name="add" size={18} color={theme.colors.secondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -263,12 +276,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.secondary,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1.5,
+    borderColor: theme.colors.secondary,
   },
   lowStockBadge: {
     position: 'absolute',
@@ -276,7 +296,7 @@ const styles = StyleSheet.create({
     left: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 10,
@@ -291,7 +311,19 @@ const styles = StyleSheet.create({
   lowStockText: {
     fontSize: 9,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
+  },
+  trendingBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  fireEmoji: {
+    fontSize: 14,
   },
   name: {
     fontSize: 13,

@@ -164,8 +164,8 @@ export const CATEGORIES_DATA = [
 ];
 
 const CategoryIcon = ({ category, isSelected }) => {
-  const iconColor = isSelected ? theme.colors.textLight : (category.color || theme.colors.text);
-  const size = 20;
+  const iconColor = isSelected ? category.color : (category.color || theme.colors.textMuted);
+  const size = 32; // Larger icon size
   
   if (category.iconType === 'ionicons') {
     return <Ionicons name={category.icon} size={size} color={iconColor} />;
@@ -193,22 +193,28 @@ export const CategoryBarWithIcons = ({ selectedCategory, onSelectCategory }) => 
           return (
             <TouchableOpacity
               key={category.id}
-              style={[
-                styles.chip,
-                isSelected && styles.chipActive,
-              ]}
+              style={styles.categoryItem}
               onPress={() => handleCategoryPress(category)}
               activeOpacity={0.7}
             >
-              <CategoryIcon category={category} isSelected={isSelected} />
+              <View style={[
+                styles.iconWrapper,
+                isSelected && { transform: [{ scale: 1.1 }] }
+              ]}>
+                <CategoryIcon category={category} isSelected={isSelected} />
+              </View>
               <Text
                 style={[
-                  styles.chipText,
-                  isSelected && styles.chipTextActive,
+                  styles.categoryText,
+                  isSelected && styles.categoryTextActive,
+                  isSelected && { color: category.color }
                 ]}
               >
                 {category.name}
               </Text>
+              {isSelected && (
+                <View style={[styles.activeIndicator, { backgroundColor: category.color }]} />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -220,32 +226,38 @@ export const CategoryBarWithIcons = ({ selectedCategory, onSelectCategory }) => 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.background,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
-  chip: {
-    flexDirection: 'row',
+  categoryItem: {
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    marginRight: 8,
-    gap: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 4,
+    minWidth: 65,
   },
-  chipActive: {
-    backgroundColor: theme.colors.secondary,
+  iconWrapper: {
+    marginBottom: 6,
   },
-  chipText: {
-    fontSize: 13,
+  categoryText: {
+    fontSize: 11,
     fontWeight: '500',
-    color: theme.colors.text,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
   },
-  chipTextActive: {
-    color: theme.colors.textLight,
+  categoryTextActive: {
+    fontWeight: '700',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 24,
+    height: 3,
+    borderRadius: 2,
   },
 });

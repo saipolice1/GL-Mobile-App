@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-import { 
-  getFavorites, 
-  subscribeFavorites,
-  getFavoritesCount 
-} from '../../services/favorites';
+import { WixMediaImage } from '../../WixMediaImage';
 import { ProductModal } from '../ProductModal/ProductModal';
 
 const { width, height } = Dimensions.get('window');
@@ -25,30 +21,36 @@ const CARD_GAP = 10;
 const HORIZONTAL_PADDING = 16;
 const CARD_WIDTH = (width * 0.92 - (HORIZONTAL_PADDING * 2) - (CARD_GAP * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
 
-// Grid Product Card for wishlist
-const WishlistGridCard = ({ item, onPress }) => {
-  const isOutOfStock = item.inStock === false || item.stockQuantity === 0;
-  const isLowStock = item.stockQuantity > 0 && item.stockQuantity <= 5;
-  const isTrending = item.isTrending || item.ribbon === 'Best Seller';
+// Product Card for grid display
+const GridProductCard = ({ product, onPress }) => {
+  const price = product?.priceData?.formatted?.price || 
+    `$${Number.parseFloat(product?.priceData?.price || 0).toFixed(2)}`;
+  
+  const stockQuantity = product?.stock?.quantity;
+  const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
+  const isOutOfStock = stockQuantity === 0 || !inStock;
+  const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
   return (
     <TouchableOpacity 
       style={styles.gridCard} 
-      onPress={() => onPress(item)}
+      onPress={() => onPress(product)}
       activeOpacity={0.7}
     >
       <View style={styles.cardImageContainer}>
-        {item.image ? (
-          <Image 
-            source={{ uri: item.image }} 
-            style={[styles.cardImage, isOutOfStock && styles.imageGrayedOut]}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="wine" size={24} color={theme.colors.textMuted} />
-          </View>
-        )}
+        <WixMediaImage
+          media={product?.media?.mainMedia?.image?.url}
+          width={CARD_WIDTH}
+          height={CARD_WIDTH}
+        >
+          {({ url }) => (
+            <Image 
+              source={{ uri: url }} 
+              style={[styles.cardImage, isOutOfStock && styles.imageGrayedOut]}
+            />
+          )}
+        </WixMediaImage>
         
         {/* Out of Stock Badge */}
         {isOutOfStock && (
@@ -63,7 +65,7 @@ const WishlistGridCard = ({ item, onPress }) => {
         {isLowStock && !isOutOfStock && (
           <View style={styles.lowStockBadge}>
             <View style={styles.lowStockDot} />
-            <Text style={styles.lowStockText}>Only {item.stockQuantity} left</Text>
+            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
           </View>
         )}
         
@@ -74,7 +76,7 @@ const WishlistGridCard = ({ item, onPress }) => {
           </View>
         )}
 
-        {/* Add to cart indicator */}
+        {/* Add to cart button */}
         {!isOutOfStock && (
           <View style={styles.addButtonContainer}>
             <View style={styles.addButton}>
@@ -84,80 +86,39 @@ const WishlistGridCard = ({ item, onPress }) => {
         )}
       </View>
       <Text style={[styles.cardName, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>
-        {item.name}
+        {product?.name}
       </Text>
-      <Text style={[styles.cardPrice, isOutOfStock && styles.textGrayedOut]}>
-        {item.discountedPrice && item.discountedPrice !== item.price ? item.discountedPrice : item.price}
-      </Text>
+      <Text style={[styles.cardPrice, isOutOfStock && styles.textGrayedOut]}>{price}</Text>
     </TouchableOpacity>
   );
 };
 
 // Empty State Component
-const EmptyWishlist = () => (
+const EmptyProducts = ({ categoryName }) => (
   <View style={styles.emptyContainer}>
-    <Ionicons name="heart-outline" size={64} color={theme.colors.textMuted} />
-    <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
+    <Ionicons name="wine-outline" size={64} color={theme.colors.textMuted} />
+    <Text style={styles.emptyTitle}>No products found</Text>
     <Text style={styles.emptyText}>
-      Tap the heart icon on products to save them here
+      {categoryName ? `No products available in ${categoryName}` : 'No products available'}
     </Text>
   </View>
 );
 
-// Convert wishlist item to product format for ProductModal
-const convertToProduct = (item) => ({
-  _id: item.id,
-  name: item.name,
-  description: item.description || '',
-  priceData: {
-    price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || 0),
-    formatted: { price: item.price }
-  },
-  media: {
-    mainMedia: {
-      image: { url: item.image }
-    }
-  },
-  stock: {
-    quantity: item.stockQuantity,
-    inStock: item.inStock !== false,
-    inventoryStatus: item.inStock === false ? 'OUT_OF_STOCK' : 'IN_STOCK'
-  },
-  ribbon: item.ribbon,
-  ribbons: item.ribbons,
-  collectionIds: item.collectionIds || [],
-});
-
-// Wishlist Modal Component with Grid Layout
-export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) => {
-  const [favorites, setFavorites] = useState([]);
+// View All Modal Component
+export const ViewAllModal = ({ 
+  visible, 
+  onClose, 
+  products = [],
+  categoryName = 'Products',
+  categoryIcon = null,
+  categoryColor = theme.colors.text,
+  onAddToCart,
+  onViewCart,
+}) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
 
-  // Load favorites on mount and subscribe to changes
-  useEffect(() => {
-    loadFavorites();
-    const unsubscribe = subscribeFavorites((newFavorites) => {
-      setFavorites(newFavorites);
-    });
-    return unsubscribe;
-  }, []);
-
-  // Reload when modal becomes visible
-  useEffect(() => {
-    if (visible) {
-      loadFavorites();
-    }
-  }, [visible]);
-
-  const loadFavorites = async () => {
-    const favs = await getFavorites();
-    setFavorites(favs);
-  };
-
-  const handleProductPress = (item) => {
-    // Convert wishlist item to product format and open product modal
-    const product = convertToProduct(item);
+  const handleProductPress = (product) => {
     setSelectedProduct(product);
     setProductModalVisible(true);
   };
@@ -166,8 +127,6 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
     setProductModalVisible(false);
     // Don't clear selectedProduct immediately to allow smooth animation
     setTimeout(() => setSelectedProduct(null), 300);
-    // Reload favorites in case user unfavorited from product modal
-    loadFavorites();
   };
 
   const handleViewCart = () => {
@@ -199,13 +158,15 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
-                <View style={styles.headerIcon}>
-                  <Ionicons name="heart" size={22} color={theme.colors.error} />
-                </View>
+                {categoryIcon && (
+                  <View style={[styles.headerIcon, { backgroundColor: categoryColor + '20' }]}>
+                    {categoryIcon}
+                  </View>
+                )}
                 <View>
-                  <Text style={styles.headerTitle}>My Wishlist</Text>
+                  <Text style={styles.headerTitle}>{categoryName}</Text>
                   <Text style={styles.itemCount}>
-                    {favorites.length} {favorites.length === 1 ? 'item' : 'items'}
+                    {products.length} {products.length === 1 ? 'item' : 'items'}
                   </Text>
                 </View>
               </View>
@@ -215,16 +176,16 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
             </View>
             
             {/* Products Grid */}
-            {favorites.length === 0 ? (
-              <EmptyWishlist />
+            {products.length === 0 ? (
+              <EmptyProducts categoryName={categoryName} />
             ) : (
               <FlatList
-                data={favorites}
-                keyExtractor={(item) => item.id}
+                data={products}
+                keyExtractor={(item) => item._id || item.id}
                 numColumns={COLUMN_COUNT}
                 renderItem={({ item }) => (
-                  <WishlistGridCard 
-                    item={item}
+                  <GridProductCard 
+                    product={item}
                     onPress={handleProductPress}
                   />
                 )}
@@ -237,7 +198,7 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
         </View>
       </Modal>
 
-      {/* Product Modal - Opens on top of Wishlist Modal */}
+      {/* Product Modal - Opens on top of View All Modal */}
       <ProductModal
         visible={productModalVisible}
         product={selectedProduct}
@@ -245,41 +206,6 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
         onViewCart={handleViewCart}
       />
     </>
-  );
-};
-
-// Wishlist Button Component (for header)
-export const WishlistButton = ({ onPress }) => {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    loadCount();
-    const unsubscribe = subscribeFavorites(async () => {
-      loadCount();
-    });
-    return unsubscribe;
-  }, []);
-
-  const loadCount = async () => {
-    const c = await getFavoritesCount();
-    setCount(c);
-  };
-
-  return (
-    <TouchableOpacity 
-      style={styles.wishlistButton}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="heart-outline" size={24} color={theme.colors.text} />
-      {count > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>
-            {count > 99 ? '99+' : count}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
   );
 };
 
@@ -326,7 +252,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(229, 57, 53, 0.1)',
   },
   headerTitle: {
     fontSize: 20,
@@ -364,13 +289,6 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: '100%',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
   },
   imageGrayedOut: {
     opacity: 0.4,
@@ -480,28 +398,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: 'center',
   },
-  // Wishlist button styles
-  wishlistButton: {
-    padding: 8,
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: theme.colors.error,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFF',
-  },
 });
 
-export default WishlistModal;
+export default ViewAllModal;

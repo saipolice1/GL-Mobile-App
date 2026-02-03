@@ -10,7 +10,13 @@ const RecentlyViewedCard = ({ product, onPress }) => {
     `$${Number.parseFloat(product.priceData?.price || 0).toFixed(2)}`;
   
   const stockQuantity = product?.stock?.quantity;
+  const isOutOfStock = stockQuantity === 0 || product?.stock?.inStock === false;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+
+  // LOW STOCK takes priority - never show both badges
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock && !isLowStock;
 
   return (
     <TouchableOpacity 
@@ -27,18 +33,25 @@ const RecentlyViewedCard = ({ product, onPress }) => {
           {({ url }) => (
             <Image 
               source={{ uri: url }} 
-              style={styles.image}
+              style={[styles.image, isOutOfStock && styles.imageGrayedOut]}
             />
           )}
         </WixMediaImage>
-        {isLowStock && (
+        {/* Low Stock Badge - Priority over Trending */}
+        {showLowStock && (
           <View style={styles.lowStockBadge}>
-            <Text style={styles.lowStockText}>🔥 Selling Fast</Text>
+            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
+          </View>
+        )}
+        {/* Trending Badge - Only if NOT low stock */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
           </View>
         )}
       </View>
-      <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
-      <Text style={styles.price}>{price}</Text>
+      <Text style={[styles.name, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>{product.name}</Text>
+      <Text style={[styles.price, isOutOfStock && styles.textGrayedOut]}>{price}</Text>
     </TouchableOpacity>
   );
 };
@@ -128,21 +141,39 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F5F5F5',
   },
+  imageGrayedOut: {
+    opacity: 0.4,
+  },
+  textGrayedOut: {
+    color: theme.colors.textMuted,
+  },
   lowStockBadge: {
     position: 'absolute',
     bottom: 4,
     left: 4,
-    right: 4,
-    backgroundColor: 'rgba(255, 107, 53, 0.9)',
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   lowStockText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '600',
     color: '#FFFFFF',
-    textAlign: 'center',
+  },
+  trendingBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  fireEmoji: {
+    fontSize: 12,
   },
   name: {
     fontSize: 12,

@@ -19,7 +19,7 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
   const name = product?.name || 'Product';
   
   // Check if product is a best seller - from prop or ribbon data
-  const showFireIcon = isBestSeller || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isTrending = isBestSeller || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
   
   // Check if product is out of stock
   // Wix stock can be in stock.quantity or stock.inventoryStatus
@@ -32,6 +32,10 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
   // Check if product is low stock (selling fast) - show for items with 1-5 in stock
   const isLowStock = (stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5) ||
     (product?.stock?.inventoryStatus === 'PARTIALLY_OUT_OF_STOCK');
+
+  // LOW STOCK takes priority - never show both badges
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock && !isLowStock;
 
   return (
     <TouchableOpacity 
@@ -52,7 +56,8 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
             </View>
           </View>
         )}
-        {isLowStock && !isOutOfStock && (
+        {/* Low Stock Badge - Priority over Trending */}
+        {showLowStock && (
           <View style={styles.sellingFastBadge}>
             <View style={styles.sellingFastDot} />
             <Text style={styles.sellingFastText}>
@@ -60,18 +65,23 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
             </Text>
           </View>
         )}
-        {showFireIcon && !isOutOfStock && !isLowStock && (
+        {/* Trending Badge - Only if NOT low stock */}
+        {showTrending && (
           <View style={styles.bestSellerBadge}>
             <Text style={styles.fireEmoji}>🔥</Text>
           </View>
         )}
+        {/* Improved Add to Cart Button - More visible with white background and shadow */}
         {!isOutOfStock && (
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => onAddToCart?.(product)}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onAddToCart?.(product);
+            }}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={18} color={theme.colors.textLight} />
+            <Ionicons name="add" size={20} color={theme.colors.secondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -155,17 +165,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  // Improved Add Button - White background with shadow for better visibility
   addButton: {
     position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: theme.colors.secondary,
+    bottom: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.md,
+    // Strong shadow for visibility on any image
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1.5,
+    borderColor: theme.colors.secondary,
   },
   info: {
     paddingTop: 6,
