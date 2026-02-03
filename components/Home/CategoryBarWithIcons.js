@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 
@@ -17,8 +17,9 @@ export const CATEGORIES_DATA = [
     id: 'all-products', 
     name: 'All', 
     slug: 'all-products', 
-    icon: 'grid',
+    icon: 'apps',
     iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/all.png'),
     color: '#6366F1',
   },
   { 
@@ -27,6 +28,7 @@ export const CATEGORIES_DATA = [
     slug: 'beers', 
     icon: 'beer',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/beer.png'),
     color: '#F4A460',
     // Collections to display as sliders (no popup)
     displayCollections: [
@@ -39,8 +41,9 @@ export const CATEGORIES_DATA = [
     id: 'rtd', 
     name: 'RTD', 
     slug: 'rtd-pre-mixed', 
-    icon: 'cup',
+    icon: 'can',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/rtd-can.jpg'),
     color: '#FF69B4',
   },
   { 
@@ -49,6 +52,7 @@ export const CATEGORIES_DATA = [
     slug: 'whiskey', 
     icon: 'liquor',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/whiskey.png'),
     color: '#D2691E',
     displayCollections: [
       { name: 'All Whiskey', slug: 'whiskey', icon: 'liquor', iconType: 'material', color: '#D2691E' },
@@ -60,56 +64,63 @@ export const CATEGORIES_DATA = [
     id: 'gin', 
     name: 'Gin', 
     slug: 'gin', 
-    icon: 'glass-tulip',
+    icon: 'glass-cocktail',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/gin.png'),
     color: '#87CEEB',
   },
   { 
     id: 'tequila', 
     name: 'Tequila', 
     slug: 'tequila', 
-    icon: 'shaker',
-    iconType: 'material',
+    icon: 'beer',
+    iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/tequila.png'),
     color: '#32CD32',
   },
   { 
     id: 'rum', 
     name: 'Rum', 
     slug: 'rum', 
-    icon: 'bottle-wine',
+    icon: 'bottle-tonic',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/rum.png'),
     color: '#8B0000',
   },
   { 
     id: 'brandy', 
     name: 'Brandy', 
     slug: 'brandy', 
-    icon: 'glass-tulip',
+    icon: 'glass-mug-variant',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/brandy.png'),
     color: '#B8860B',
   },
   { 
     id: 'liqueur', 
     name: 'Liqueur', 
     slug: 'liqueur', 
-    icon: 'bottle-tonic',
+    icon: 'bottle-wine',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/liqueur.png'),
     color: '#9370DB',
   },
   { 
     id: 'vodka', 
     name: 'Vodka', 
     slug: 'vodka', 
-    icon: 'glass-cocktail',
+    icon: 'bottle-soda',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/vodka.png'),
     color: '#00CED1',
   },
   { 
     id: 'white-wines', 
     name: 'White Wines', 
     slug: 'white-wines', 
-    icon: 'glass-wine',
-    iconType: 'material',
+    icon: 'wine',
+    iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/white-wine.png'),
     color: '#F5DEB3',
     displayCollections: [
       { name: 'Champagne', slug: 'champagne', icon: 'glass-flute', iconType: 'material', color: '#FFD700' },
@@ -124,8 +135,9 @@ export const CATEGORIES_DATA = [
     id: 'red-wines', 
     name: 'Red Wines', 
     slug: 'red-wines', 
-    icon: 'glass-wine',
-    iconType: 'material',
+    icon: 'wine',
+    iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/red-wine.png'),
     color: '#722F37',
     displayCollections: [
       { name: 'Merlot', slug: 'merlot', icon: 'glass-wine', iconType: 'material', color: '#722F37' },
@@ -141,16 +153,18 @@ export const CATEGORIES_DATA = [
     id: 'smokes', 
     name: 'Smokes', 
     slug: 'smokes-1', 
-    icon: 'smoking',
-    iconType: 'material',
+    icon: 'cloud',
+    iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/smokes.png'),
     color: '#708090',
   },
   { 
     id: 'snacks', 
     name: 'Snacks', 
     slug: 'snacks-soft-drinks', 
-    icon: 'food',
-    iconType: 'material',
+    icon: 'fast-food',
+    iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/snacks.png'),
     color: '#FF8C00',
   },
   { 
@@ -163,14 +177,38 @@ export const CATEGORIES_DATA = [
   },
 ];
 
-const CategoryIcon = ({ category, isSelected }) => {
-  const iconColor = isSelected ? category.color : (category.color || theme.colors.textMuted);
-  const size = 32; // Larger icon size
-  
-  if (category.iconType === 'ionicons') {
-    return <Ionicons name={category.icon} size={size} color={iconColor} />;
+const CategoryIcon = ({ category }) => {
+  // Trending and Accessories stay at 50
+  const noChangeCategories = ['trending', 'accessories'];
+  // RTD reduced to 42, others reduced to 60
+  let size;
+  if (noChangeCategories.includes(category.id)) {
+    size = 50;
+  } else if (category.id === 'rtd') {
+    size = 42;
+  } else {
+    size = 60;
   }
-  return <MaterialCommunityIcons name={category.icon} size={size} color={iconColor} />;
+
+  if (category.customImage) {
+    return (
+      <View style={styles.iconWrap}>
+        <Image 
+          source={category.customImage} 
+          style={{ width: size, height: size }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
+  const IconComponent = category.iconType === 'ionicons' ? Ionicons : MaterialCommunityIcons;
+
+  return (
+    <View style={styles.iconWrap}>
+      <IconComponent name={category.icon} size={size} color={category.color} />
+    </View>
+  );
 };
 
 export const CategoryBarWithIcons = ({ selectedCategory, onSelectCategory }) => {
@@ -197,24 +235,15 @@ export const CategoryBarWithIcons = ({ selectedCategory, onSelectCategory }) => 
               onPress={() => handleCategoryPress(category)}
               activeOpacity={0.7}
             >
-              <View style={[
-                styles.iconWrapper,
-                isSelected && { transform: [{ scale: 1.1 }] }
-              ]}>
-                <CategoryIcon category={category} isSelected={isSelected} />
-              </View>
+              <CategoryIcon category={category} isSelected={isSelected} />
               <Text
                 style={[
                   styles.categoryText,
-                  isSelected && styles.categoryTextActive,
-                  isSelected && { color: category.color }
+                  isSelected && styles.categoryTextActive
                 ]}
               >
                 {category.name}
               </Text>
-              {isSelected && (
-                <View style={[styles.activeIndicator, { backgroundColor: category.color }]} />
-              )}
             </TouchableOpacity>
           );
         })}
@@ -236,13 +265,18 @@ const styles = StyleSheet.create({
   categoryItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingVertical: 8,
-    marginRight: 4,
-    minWidth: 65,
+    marginRight: 0,
+    minWidth: 37,
   },
-  iconWrapper: {
-    marginBottom: 6,
+  // Layout wrapper (no background/border) to keep spacing consistent.
+  iconWrap: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   categoryText: {
     fontSize: 11,
@@ -252,12 +286,6 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     fontWeight: '700',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: 24,
-    height: 3,
-    borderRadius: 2,
+    color: theme.colors.text,
   },
 });

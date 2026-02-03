@@ -39,7 +39,7 @@ const QuickReorderCard = ({ product, onPress }) => {
 
 export const QuickReorderSection = ({ onProductPress }) => {
   // Fetch user's order history from Wix
-  const { data: orderProducts = [], isLoading } = useQuery({
+  const { data: orderProducts = [], isLoading, error } = useQuery({
     queryKey: ['quickReorder'],
     queryFn: async () => {
       try {
@@ -80,11 +80,33 @@ export const QuickReorderSection = ({ onProductPress }) => {
 
         return productsResponse?.items || [];
       } catch (error) {
-        console.log('Quick reorder fetch error:', error);
+        // Check if it's a permission error
+        const isPermissionError = 
+          error?.details?.applicationError?.code === 'READ_ORDER_FORBIDDEN' ||
+          error?.message?.toLowerCase().includes('permission denied') ||
+          error?.message?.toLowerCase().includes('forbidden');
+        
+        if (isPermissionError) {
+          console.log('Orders permission not granted - Quick Reorder section will be hidden');
+        } else {
+          console.log('Quick reorder fetch error:', error);
+        }
         return [];
       }
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry if it's a permission error
+      const isPermissionError = 
+        error?.details?.applicationError?.code === 'READ_ORDER_FORBIDDEN' ||
+        error?.message?.toLowerCase().includes('permission denied') ||
+        error?.message?.toLowerCase().includes('forbidden');
+      
+      if (isPermissionError) {
+        return false; // Don't retry permission errors
+      }
+      return failureCount < 3; // Retry other errors up to 3 times
+    },
   });
 
   // Don't show if no previous orders

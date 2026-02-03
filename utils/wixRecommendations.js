@@ -13,6 +13,11 @@ const WIX_STORES_APP_ID = '215238eb-22a5-4c36-9e7b-e7c08025e04e';
 // Cache for algorithm ID to avoid repeated API calls
 let cachedBestSellersAlgorithmId = null;
 
+// Cache for best sellers results to avoid repeated API calls and keep consistent results
+let cachedBestSellers = null;
+let bestSellersCacheTime = null;
+const BEST_SELLERS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Get access token from the Wix client
  */
@@ -84,13 +89,19 @@ export const getBestSellersAlgorithmId = async () => {
 
   const algorithms = await listRecommendationAlgorithms();
   
-  // Look for "Best sellers" or similar algorithm
-  const bestSellersAlg = algorithms.find(alg => 
-    alg.name?.toLowerCase().includes('best seller') ||
-    alg.name?.toLowerCase().includes('bestseller') ||
-    alg.name?.toLowerCase().includes('popular') ||
-    alg.name?.toLowerCase().includes('trending')
+  // Look for "Best sellers" algorithm (exact match preferred)
+  let bestSellersAlg = algorithms.find(alg => 
+    alg.name?.toLowerCase() === 'best sellers' ||
+    alg.name?.toLowerCase() === 'bestsellers'
   );
+
+  // If not found, try partial matches
+  if (!bestSellersAlg) {
+    bestSellersAlg = algorithms.find(alg => 
+      alg.name?.toLowerCase().includes('best seller') ||
+      alg.name?.toLowerCase().includes('bestseller')
+    );
+  }
 
   if (bestSellersAlg) {
     cachedBestSellersAlgorithmId = bestSellersAlg._id;
@@ -98,14 +109,7 @@ export const getBestSellersAlgorithmId = async () => {
     return bestSellersAlg._id;
   }
 
-  // Fallback: use the first Wix Stores algorithm
-  const storesAlg = algorithms.find(alg => alg.appId === WIX_STORES_APP_ID);
-  if (storesAlg) {
-    cachedBestSellersAlgorithmId = storesAlg._id;
-    console.log('Using Wix Stores algorithm:', storesAlg.name, storesAlg._id);
-    return storesAlg._id;
-  }
-
+  console.log('No Best Sellers algorithm found');
   return null;
 };
 
@@ -216,11 +220,23 @@ export const getProductsByIds = async (productIds) => {
  * 1. Gets the "Best sellers" algorithm ID
  * 2. Fetches recommendations using that algorithm
  * 3. Converts item IDs to full product data
+ * 4. Caches results to prevent products changing on category switch
  * 
- * @param {number} limit - Maximum number of products to return
+ * @param {number} limit - Maximum number of products to return (default: 21)
+ * @param {boolean} forceRefresh - Force refresh cache (default: false)
  */
-export const getBestSellers = async (limit = 20) => {
+export const getBestSellers = async (limit = 21, forceRefresh = false) => {
   console.log('=== FETCHING BEST SELLERS ===');
+  
+  // Check cache first (unless force refresh)
+  if (!forceRefresh && cachedBestSellers && bestSellersCacheTime) {
+    const now = Date.now();
+    const cacheAge = now - bestSellersCacheTime;
+    if (cacheAge < BEST_SELLERS_CACHE_DURATION) {
+      console.log(`Using cached best sellers (age: ${Math.round(cacheAge / 1000)}s)`);
+      return cachedBestSellers.slice(0, limit);
+    }
+  }
   
   try {
     // Step 1: Get algorithm ID
@@ -228,10 +244,14 @@ export const getBestSellers = async (limit = 20) => {
     
     if (!algorithmId) {
       console.log('No best sellers algorithm found, falling back to default query');
-      return await getFallbackBestSellers(limit);
+      const fallback = await getFallbackBestSellers(limit);
+      // Cache fallback results too
+      cachedBestSellers = fallback;
+      bestSellersCacheTime = Date.now();
+      return fallback;
     }
 
-    // Step 2: Get recommendations
+    // Step 2: Get recommendations (request more than needed in case some are out of stock)
     const productIds = await getRecommendations({
       algorithmId,
       minimumRecommendedItems: Math.min(limit, 10),
@@ -239,30 +259,40 @@ export const getBestSellers = async (limit = 20) => {
 
     if (productIds.length === 0) {
       console.log('No recommendations returned, using fallback');
-      return await getFallbackBestSellers(limit);
+      const fallback = await getFallbackBestSellers(limit);
+      cachedBestSellers = fallback;
+      bestSellersCacheTime = Date.now();
+      return fallback;
     }
 
-    // Step 3: Get full product data
+    // Step 3: Get full product data (take up to limit)
     const products = await getProductsByIds(productIds.slice(0, limit));
     
     console.log(`Best Sellers: Returned ${products.length} products`);
+    
+    // Cache the results
+    cachedBestSellers = products;
+    bestSellersCacheTime = Date.now();
+    
     return products;
   } catch (error) {
     console.log('Error in getBestSellers:', error);
-    return await getFallbackBestSellers(limit);
+    const fallback = await getFallbackBestSellers(limit);
+    cachedBestSellers = fallback;
+    bestSellersCacheTime = Date.now();
+    return fallback;
   }
 };
 
 /**
- * Fallback: Get "best sellers" by querying products with most inventory sold
+ * Fallback: Get "best sellers" by querying recently updated products
  * (when Recommendations API is not available)
  */
-export const getFallbackBestSellers = async (limit = 20) => {
+export const getFallbackBestSellers = async (limit = 21) => {
   console.log('Using fallback best sellers query...');
   
   try {
-    // Fetch products and sort by numericId descending (newer products)
-    // This is a rough proxy when we can't access sales data
+    // Fetch products sorted by last updated (most recent first)
     const response = await wixCient.products
       .queryProducts()
       .descending('lastUpdated')
@@ -271,16 +301,25 @@ export const getFallbackBestSellers = async (limit = 20) => {
     
     const items = response?.items || [];
     
-    // Filter to in-stock items and shuffle for variety
+    // Filter to in-stock items only (keep original order, no shuffle)
     const inStock = items.filter(p => p.stock?.inStock !== false);
-    const shuffled = inStock.sort(() => Math.random() - 0.5);
     
-    console.log(`Fallback: Returned ${Math.min(shuffled.length, limit)} products`);
-    return shuffled.slice(0, limit);
+    console.log(`Fallback: Returned ${Math.min(inStock.length, limit)} products`);
+    return inStock.slice(0, limit);
   } catch (error) {
     console.log('Error in fallback best sellers:', error);
     return [];
   }
+};
+
+/**
+ * Clear the best sellers cache
+ * Useful when you want to force refresh the best sellers
+ */
+export const clearBestSellersCache = () => {
+  cachedBestSellers = null;
+  bestSellersCacheTime = null;
+  console.log('Best sellers cache cleared');
 };
 
 /**
@@ -332,5 +371,6 @@ export default {
   getProductsByIds,
   getBestSellers,
   getFallbackBestSellers,
+  clearBestSellersCache,
   getRelatedProducts,
 };

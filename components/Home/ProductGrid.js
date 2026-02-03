@@ -13,6 +13,7 @@ export const ProductGrid = ({
   ListFooterComponent,
   isBestSellersCategory = false,
   onScroll,
+  hideEmptyMessage = false,
 }) => {
   
   if (isLoading) {
@@ -46,11 +47,17 @@ export const ProductGrid = ({
     </View>
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>No products found</Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    // Don't show "No products found" if hideEmptyMessage is true
+    if (hideEmptyMessage) {
+      return null;
+    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No products found</Text>
+      </View>
+    );
+  };
 
   return (
     <FlatList

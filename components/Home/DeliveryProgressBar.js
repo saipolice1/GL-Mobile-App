@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 
@@ -108,19 +109,22 @@ export const DeliveryProgressBar = ({ cartTotal = 0 }) => {
           <Text style={styles.minAmount}>${SAME_DAY_MIN}</Text>
         </View>
         <View style={styles.progressBackground}>
-          <View style={[
-            styles.progressFill, 
-            { width: `${sameDayProgress * 100}%` },
-            sameDayUnlocked && styles.progressFillComplete
-          ]}>
-            {/* Shimmer effect */}
+          <LinearGradient
+            colors={['#10B981', '#3B82F6', '#8B5CF6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.progressFill, 
+              { width: `${sameDayProgress * 100}%` },
+            ]}
+          >
             <Animated.View 
               style={[
                 styles.shimmer,
                 { transform: [{ translateX: shimmerTranslate }] }
               ]} 
             />
-          </View>
+          </LinearGradient>
         </View>
       </View>
 
@@ -145,19 +149,22 @@ export const DeliveryProgressBar = ({ cartTotal = 0 }) => {
           <Text style={styles.minAmount}>${FREE_DELIVERY_MIN}</Text>
         </View>
         <View style={styles.progressBackground}>
-          <View style={[
-            styles.progressFill, 
-            { width: `${freeDeliveryProgress * 100}%` },
-            freeDeliveryUnlocked && styles.progressFillComplete
-          ]}>
-            {/* Shimmer effect */}
+          <LinearGradient
+            colors={['#F59E0B', '#EF4444', '#EC4899']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.progressFill, 
+              { width: `${freeDeliveryProgress * 100}%` },
+            ]}
+          >
             <Animated.View 
               style={[
                 styles.shimmer,
                 { transform: [{ translateX: shimmerTranslate }] }
               ]} 
             />
-          </View>
+          </LinearGradient>
         </View>
       </View>
     </Animated.View>
@@ -222,7 +229,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFillComplete: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: '#10B981', // Green gradient start
   },
   shimmer: {
     position: 'absolute',
@@ -231,7 +238,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     width: 50,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.4)',
     transform: [{ skewX: '-20deg' }],
   },
 });

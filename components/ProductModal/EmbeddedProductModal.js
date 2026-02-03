@@ -38,6 +38,7 @@ export const EmbeddedProductModal = ({
   const [isProductFavorite, setIsProductFavorite] = useState(false);
   const [slideAnim] = useState(new Animated.Value(screenHeight));
   const [addedToCart, setAddedToCart] = useState(false);
+  const [totalItemsAdded, setTotalItemsAdded] = useState(0);
   // Track quantities for similar and recently viewed products
   const [similarQuantities, setSimilarQuantities] = useState({});
   const [recentQuantities, setRecentQuantities] = useState({});
@@ -47,13 +48,8 @@ export const EmbeddedProductModal = ({
   useEffect(() => {
     if (initialProduct) {
       setCurrentProduct(initialProduct);
-      // Reset animation to bottom when product changes while modal is visible
-      // This prevents the flash issue when opening a second product
-      if (visible) {
-        slideAnim.setValue(screenHeight);
-      }
     }
-  }, [initialProduct, visible, slideAnim]);
+  }, [initialProduct]);
 
   // Animate in/out
   useEffect(() => {
@@ -61,15 +57,13 @@ export const EmbeddedProductModal = ({
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 10,
+        overshootClamping: true,
       }).start();
     } else {
-      Animated.timing(slideAnim, {
-        toValue: screenHeight,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+      // Reset to bottom when closing
+      slideAnim.setValue(screenHeight);
     }
   }, [visible, slideAnim]);
 
@@ -187,8 +181,16 @@ export const EmbeddedProductModal = ({
     },
     onSuccess: (response) => {
       queryClient.setQueryData(['currentCart'], response.cart);
-      // Close modal after adding to cart
-      onClose();
+      // Calculate total items added
+      let total = quantity;
+      Object.values(similarQuantities).forEach(qty => { total += qty; });
+      Object.values(recentQuantities).forEach(qty => { total += qty; });
+      setTotalItemsAdded(total);
+      // Show cart summary for 2 seconds before closing
+      setAddedToCart(true);
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     },
     onError: (error) => {
       console.log('Add to cart error:', error);
@@ -429,10 +431,14 @@ export const EmbeddedProductModal = ({
               <Text style={styles.outOfStockButtonText}>Out of Stock</Text>
             </View>
           ) : addedToCart ? (
-            <View style={[styles.addToCartButton, styles.addedToCartButton]}>
+            <TouchableOpacity 
+              style={[styles.addToCartButton, styles.addedToCartButton]}
+              onPress={() => onClose()}
+            >
               <Ionicons name="checkmark-circle" size={22} color="#fff" />
-              <Text style={styles.addToCartText}>Added to Cart!</Text>
-            </View>
+              <Text style={styles.addToCartText}>{totalItemsAdded} item{totalItemsAdded > 1 ? 's' : ''} added!</Text>
+              <Text style={styles.viewCartText}>Tap to close</Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={[
@@ -466,41 +472,77 @@ const SimilarProductCardWithQuantity = ({ product, quantity, onQuantityChange })
   const price = product?.priceData?.formatted?.price || 
     `$${Number.parseFloat(product?.priceData?.price || 0).toFixed(2)}`;
 
+  const stockQuantity = product?.stock?.quantity;
+  const inStock = product?.stock?.inStock !== false;
+  const isOutOfStock = stockQuantity === 0 || !inStock;
+  const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock;
+
   return (
     <View style={styles.similarCard}>
-      <WixMediaImage
-        media={product?.media?.mainMedia?.image?.url}
-        width={80}
-        height={80}
-      >
-        {({ url }) => (
-          <Image source={{ uri: url }} style={styles.similarImage} />
+      <View style={styles.similarImageContainer}>
+        <WixMediaImage
+          media={product?.media?.mainMedia?.image?.url}
+          width={80}
+          height={80}
+        >
+          {({ url }) => (
+            <Image 
+              source={{ uri: url }} 
+              style={[styles.similarImage, isOutOfStock && styles.imageGrayedOut]}
+            />
+          )}
+        </WixMediaImage>
+        
+        {/* Badges */}
+        {isOutOfStock && (
+          <View style={styles.similarSoldOutOverlay}>
+            <View style={styles.similarSoldOutBadge}>
+              <Text style={styles.similarSoldOutText}>SOLD OUT</Text>
+            </View>
+          </View>
         )}
-      </WixMediaImage>
-      <Text style={styles.similarName} numberOfLines={2}>{product.name}</Text>
-      <Text style={styles.similarPrice}>{price}</Text>
+        {showTrending && (
+          <View style={styles.similarTrendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        {showLowStock && (
+          <View style={styles.similarLowStockBadge}>
+            <View style={styles.similarLowStockDot} />
+            <Text style={styles.similarLowStockText}>{stockQuantity}</Text>
+          </View>
+        )}
+      </View>
+      
+      <Text style={[styles.similarName, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>{product.name}</Text>
+      <Text style={[styles.similarPrice, isOutOfStock && styles.textGrayedOut]}>{price}</Text>
       
       {/* Quantity Controls */}
-      <View style={styles.similarQuantityContainer}>
-        <TouchableOpacity
-          style={[styles.similarQuantityButton, quantity === 0 && styles.similarQuantityButtonDisabled]}
-          onPress={() => onQuantityChange(-1)}
-          disabled={quantity === 0}
-        >
-          <Ionicons 
-            name="remove" 
-            size={16} 
-            color={quantity === 0 ? theme.colors.textMuted : theme.colors.text} 
-          />
-        </TouchableOpacity>
-        <Text style={styles.similarQuantityText}>{quantity}</Text>
-        <TouchableOpacity
-          style={styles.similarQuantityButton}
-          onPress={() => onQuantityChange(1)}
-        >
-          <Ionicons name="add" size={16} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
+      {!isOutOfStock && (
+        <View style={styles.similarQuantityContainer}>
+          <TouchableOpacity
+            style={[styles.similarQuantityButton, quantity === 0 && styles.similarQuantityButtonDisabled]}
+            onPress={() => onQuantityChange(-1)}
+            disabled={quantity === 0}
+          >
+            <Ionicons 
+              name="remove" 
+              size={16} 
+              color={quantity === 0 ? theme.colors.textMuted : theme.colors.text} 
+            />
+          </TouchableOpacity>
+          <Text style={styles.similarQuantityText}>{quantity}</Text>
+          <TouchableOpacity
+            style={styles.similarQuantityButton}
+            onPress={() => onQuantityChange(1)}
+          >
+            <Ionicons name="add" size={16} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -528,7 +570,19 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -12,
+    },
+    shadowOpacity: 0.58,
+    shadowRadius: 16.0,
+    elevation: 24,
   },
   headerButtons: {
     position: 'absolute',
@@ -708,30 +762,100 @@ const styles = StyleSheet.create({
     width: 100,
     marginRight: 12,
   },
+  similarImageContainer: {
+    position: 'relative',
+    marginBottom: 8,
+  },
   similarImage: {
     width: 80,
     height: 80,
     borderRadius: 8,
     backgroundColor: theme.colors.surface,
-    marginBottom: 8,
+  },
+  imageGrayedOut: {
+    opacity: 0.4,
+  },
+  textGrayedOut: {
+    opacity: 0.5,
+  },
+  similarSoldOutOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  similarSoldOutBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  similarSoldOutText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  similarTrendingBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 4,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fireEmoji: {
+    fontSize: 12,
+  },
+  similarLowStockBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(255, 107, 53, 0.95)',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  similarLowStockDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fff',
+    marginRight: 3,
+  },
+  similarLowStockText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   similarName: {
     fontSize: 12,
     color: theme.colors.text,
     marginBottom: 4,
+    height: 32,
   },
   similarPrice: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.colors.accent,
     marginBottom: 6,
+    height: 16,
   },
   similarQuantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
     borderRadius: 8,
-    marginTop: 4,
+    alignSelf: 'stretch',
   },
   similarQuantityButton: {
     width: 28,
@@ -785,6 +909,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  viewCartText: {
+    color: theme.colors.textLight,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 'auto',
+  },
+  viewCartText: {
+    color: theme.colors.textLight,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 'auto',
   },
   addToCartContent: {
     flexDirection: 'row',

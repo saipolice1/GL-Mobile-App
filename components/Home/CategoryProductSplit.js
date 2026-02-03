@@ -198,7 +198,7 @@ const ProductCard = ({ product, onPress, onAddToCart, isBestSeller }) => {
           onPress={() => onAddToCart?.(product)}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={18} color={theme.colors.textLight} />
+          <Ionicons name="add" size={22} color={theme.colors.textLight} style={{ fontWeight: 'bold' }} />
         </TouchableOpacity>
       </View>
       <View style={styles.productInfo}>
@@ -412,6 +412,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   productInfo: {
     paddingTop: 6,

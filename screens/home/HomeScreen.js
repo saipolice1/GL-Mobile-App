@@ -78,6 +78,10 @@ export const HomeScreen = ({ navigation }) => {
         return null;
       }
     },
+    // Real-time cart updates
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchIntervalInBackground: false,
+    staleTime: 25000,
   });
 
   // Calculate cart total
@@ -138,28 +142,17 @@ export const HomeScreen = ({ navigation }) => {
           // Use Wix Recommendations API for best sellers
           console.log('Fetching best sellers via Wix Recommendations API...');
           
-          // First, list available algorithms (for debugging)
-          await listRecommendationAlgorithms();
-          
-          // Get best sellers using the Recommendations API
-          const bestSellers = await getBestSellers(20);
+          // Get best sellers using the Recommendations API (21 products)
+          const bestSellers = await getBestSellers(21);
           
           if (bestSellers.length > 0) {
             console.log(`Best Sellers: Found ${bestSellers.length} products via Recommendations API`);
             return bestSellers;
           }
           
-          // Fallback: query products directly if API fails
-          console.log('Recommendations API fallback - querying products directly');
-          const response = await wixCient.products
-            .queryProducts()
-            .descending('lastUpdated')
-            .limit(30)
-            .find();
-          
-          const items = response?.items || [];
-          const shuffled = items.sort(() => Math.random() - 0.5);
-          return shuffled.slice(0, 20);
+          // Fallback: this should not happen as getBestSellers has its own fallback
+          console.log('Unexpected: No best sellers returned');
+          return [];
         } else {
           // Find collection by slug
           let collection = collections.find(c => c.slug === selectedCategory);
@@ -277,6 +270,11 @@ export const HomeScreen = ({ navigation }) => {
       }
     },
     enabled: true,
+    // Real-time inventory updates
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchIntervalInBackground: false, // Don't refetch when app is in background
+    staleTime: 25000, // Consider data stale after 25 seconds
+    cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 
   // Apply sorting and filtering to products
@@ -479,6 +477,7 @@ export const HomeScreen = ({ navigation }) => {
             isLoading={isLoadingProducts}
             categoryName={isAllCategory ? null : currentCategoryName}
             isBestSellersCategory={isBestSellersCategory}
+            hideEmptyMessage={isAllCategory}
             onScroll={handleScroll}
             ListHeaderComponent={
               <View>

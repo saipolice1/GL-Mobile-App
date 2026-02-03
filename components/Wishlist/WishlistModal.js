@@ -87,7 +87,7 @@ const WishlistGridCard = ({ item, onPress }) => {
             activeOpacity={0.8}
           >
             <View style={styles.addButton}>
-              <Ionicons name="add" size={12} color={theme.colors.textMuted} />
+              <Ionicons name="add" size={16} color={theme.colors.secondary} style={{ fontWeight: 'bold' }} />
             </View>
           </TouchableOpacity>
         )}
@@ -284,7 +284,7 @@ export const WishlistButton = ({ onPress }) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'flex-end',
   },
   backdrop: {
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    maxHeight: height * 0.9,
+    height: height * 0.85,
     backgroundColor: theme.colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -439,6 +439,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   cardName: {
     fontSize: 11,

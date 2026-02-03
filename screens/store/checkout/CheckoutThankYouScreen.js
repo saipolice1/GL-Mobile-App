@@ -15,6 +15,18 @@ export function CheckoutThankYouScreen({ route, navigation }) {
   const orderQuery = useQuery({
     queryKey: ["order", route.params.orderId],
     queryFn: () => wixCient.orders.getOrder(route.params.orderId),
+    retry: (failureCount, error) => {
+      // Don't retry if it's a permission error
+      const isPermissionError = 
+        error?.details?.applicationError?.code === 'READ_ORDER_FORBIDDEN' ||
+        error?.message?.toLowerCase().includes('permission denied') ||
+        error?.message?.toLowerCase().includes('forbidden');
+      
+      if (isPermissionError) {
+        return false; // Don't retry permission errors
+      }
+      return failureCount < 3;
+    },
   });
 
   if (orderQuery.isLoading) {
@@ -22,6 +34,52 @@ export function CheckoutThankYouScreen({ route, navigation }) {
   }
 
   if (orderQuery.isError) {
+    // Check if it's a permission error
+    const isPermissionError = 
+      orderQuery.error?.details?.applicationError?.code === 'READ_ORDER_FORBIDDEN' ||
+      orderQuery.error?.message?.toLowerCase().includes('permission denied') ||
+      orderQuery.error?.message?.toLowerCase().includes('forbidden');
+    
+    if (isPermissionError) {
+      // Show success message without order details if permissions are denied
+      return (
+        <View
+          style={{
+            alignItems: "center",
+            height: "100%",
+            padding: 20,
+          }}
+        >
+          <Text variant="titleLarge" style={{ marginTop: 50 }}>
+            Thank you!
+          </Text>
+          <Text style={{ marginTop: 20, textAlign: 'center' }}>
+            Your order has been placed successfully.
+          </Text>
+          <Text style={{ marginTop: 10, textAlign: 'center' }}>
+            You'll receive an email confirmation shortly.
+          </Text>
+          <Text style={{ marginTop: 10, textAlign: 'center', color: theme.colors.textMuted, fontSize: 12 }}>
+            Order ID: {route.params.orderId}
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate(Routes.home)}
+            style={{
+              marginTop: 40,
+              backgroundColor: theme.colors.text,
+              paddingVertical: 12,
+              paddingHorizontal: 32,
+              borderRadius: 8,
+            }}
+          >
+            <RNText style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
+              Continue Shopping
+            </RNText>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
     return <ErrorView message={orderQuery.error.message} />;
   }
 

@@ -815,6 +815,22 @@ const cartStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+  deliveryNoteIcon: {
+    marginRight: 12,
+  },
+  deliveryNoteContent: {
+    flex: 1,
+  },
+  deliveryNoteTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  deliveryNoteSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    lineHeight: 16,
+  },
   deliveryNoteText: {
     fontSize: 13,
     color: theme.colors.textMuted,

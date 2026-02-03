@@ -66,7 +66,7 @@ const HorizontalProductCard = ({ product, onPress }) => {
             onPress={() => onPress(product)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={14} color={theme.colors.textMuted} />
+            <Ionicons name="add" size={18} color={theme.colors.secondary} style={{ fontWeight: 'bold' }} />
           </TouchableOpacity>
         )}
       </View>
@@ -284,6 +284,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   lowStockBadge: {
     position: 'absolute',

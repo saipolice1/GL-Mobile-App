@@ -41,7 +41,7 @@ const FILTER_OPTIONS = [
   { value: 'on-sale', label: 'On Sale' },
 ];
 
-const ProductCard = ({ product, onPress, onAddToCart }) => {
+const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false }) => {
   const imageUrl = product?.media?.mainMedia?.image?.url 
     || product?.media?.items?.[0]?.image?.url
     || 'https://via.placeholder.com/200';
@@ -61,7 +61,7 @@ const ProductCard = ({ product, onPress, onAddToCart }) => {
   
   // Check for low stock and trending
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
-  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isTrending = isBestSeller || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
   
   // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
@@ -120,6 +120,7 @@ const ProductCard = ({ product, onPress, onAddToCart }) => {
 // Category chip for filtering
 const CategoryChip = ({ category, isSelected, onPress }) => {
   const IconComponent = category.iconType === 'material' ? MaterialCommunityIcons : Ionicons;
+  
   return (
     <TouchableOpacity
       style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
