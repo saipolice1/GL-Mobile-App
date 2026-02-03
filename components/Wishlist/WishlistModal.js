@@ -17,19 +17,24 @@ import {
   subscribeFavorites,
   getFavoritesCount 
 } from '../../services/favorites';
-import { ProductModal } from '../ProductModal/ProductModal';
+import { EmbeddedProductModal } from '../ProductModal/EmbeddedProductModal';
 
 const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
 const CARD_GAP = 10;
 const HORIZONTAL_PADDING = 16;
-const CARD_WIDTH = (width * 0.92 - (HORIZONTAL_PADDING * 2) - (CARD_GAP * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
+// Full width modal now, so use full screen width
+const CARD_WIDTH = (width - (HORIZONTAL_PADDING * 2) - (CARD_GAP * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
 
 // Grid Product Card for wishlist
 const WishlistGridCard = ({ item, onPress }) => {
   const isOutOfStock = item.inStock === false || item.stockQuantity === 0;
   const isLowStock = item.stockQuantity > 0 && item.stockQuantity <= 5;
   const isTrending = item.isTrending || item.ribbon === 'Best Seller';
+
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -59,28 +64,32 @@ const WishlistGridCard = ({ item, onPress }) => {
           </View>
         )}
         
-        {/* Low Stock Badge - Priority over Trending */}
-        {isLowStock && !isOutOfStock && (
+        {/* Trending Badge - Top Left */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        
+        {/* Low Stock Badge - Bottom Left */}
+        {showLowStock && (
           <View style={styles.lowStockBadge}>
             <View style={styles.lowStockDot} />
             <Text style={styles.lowStockText}>Only {item.stockQuantity} left</Text>
           </View>
         )}
-        
-        {/* Trending Badge - Only if not low stock */}
-        {isTrending && !isLowStock && !isOutOfStock && (
-          <View style={styles.trendingBadge}>
-            <Text style={styles.fireEmoji}>🔥</Text>
-          </View>
-        )}
 
-        {/* Add to cart indicator */}
+        {/* Add to cart indicator - tapping opens product modal */}
         {!isOutOfStock && (
-          <View style={styles.addButtonContainer}>
+          <TouchableOpacity 
+            style={styles.addButtonContainer}
+            onPress={() => onPress(item)}
+            activeOpacity={0.8}
+          >
             <View style={styles.addButton}>
-              <Ionicons name="add" size={16} color="#FFF" />
+              <Ionicons name="add" size={12} color={theme.colors.textMuted} />
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       </View>
       <Text style={[styles.cardName, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>
@@ -129,7 +138,7 @@ const convertToProduct = (item) => ({
 });
 
 // Wishlist Modal Component with Grid Layout
-export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) => {
+export const WishlistModal = ({ visible, onClose }) => {
   const [favorites, setFavorites] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -156,7 +165,7 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
   };
 
   const handleProductPress = (item) => {
-    // Convert wishlist item to product format and open product modal
+    // Convert wishlist item to product format and open embedded product modal
     const product = convertToProduct(item);
     setSelectedProduct(product);
     setProductModalVisible(true);
@@ -164,28 +173,19 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
 
   const handleProductModalClose = () => {
     setProductModalVisible(false);
-    // Don't clear selectedProduct immediately to allow smooth animation
     setTimeout(() => setSelectedProduct(null), 300);
     // Reload favorites in case user unfavorited from product modal
     loadFavorites();
   };
 
-  const handleViewCart = () => {
-    setProductModalVisible(false);
-    onClose();
-    onViewCart?.();
-  };
-
-  if (!visible) return null;
-
   return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={onClose}
-      >
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+    >
         <View style={styles.overlay}>
           {/* Backdrop */}
           <TouchableOpacity 
@@ -194,7 +194,7 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
             onPress={onClose}
           />
           
-          {/* Modal Content */}
+          {/* Modal Content - slides from bottom */}
           <View style={styles.modalContent}>
             {/* Header */}
             <View style={styles.header}>
@@ -235,16 +235,14 @@ export const WishlistModal = ({ visible, onClose, onProductPress, onViewCart }) 
             )}
           </View>
         </View>
-      </Modal>
 
-      {/* Product Modal - Opens on top of Wishlist Modal */}
-      <ProductModal
-        visible={productModalVisible}
-        product={selectedProduct}
-        onClose={handleProductModalClose}
-        onViewCart={handleViewCart}
-      />
-    </>
+        {/* Embedded Product Modal - renders inside WishlistModal */}
+        <EmbeddedProductModal
+          visible={productModalVisible}
+          product={selectedProduct}
+          onClose={handleProductModalClose}
+        />
+      </Modal>
   );
 };
 
@@ -287,8 +285,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   backdrop: {
     position: 'absolute',
@@ -298,10 +295,11 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   modalContent: {
-    width: '92%',
-    maxHeight: height * 0.85,
+    width: '100%',
+    maxHeight: height * 0.9,
     backgroundColor: theme.colors.background,
-    borderRadius: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     overflow: 'hidden',
     zIndex: 100,
   },
@@ -433,17 +431,14 @@ const styles = StyleSheet.create({
     right: 6,
   },
   addButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: theme.colors.secondary,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   cardName: {
     fontSize: 11,

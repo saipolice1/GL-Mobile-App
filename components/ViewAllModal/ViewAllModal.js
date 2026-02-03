@@ -8,18 +8,18 @@ import {
   FlatList,
   Image,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { WixMediaImage } from '../../WixMediaImage';
-import { ProductModal } from '../ProductModal/ProductModal';
+import { EmbeddedProductModal } from '../ProductModal/EmbeddedProductModal';
 
 const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
 const CARD_GAP = 10;
 const HORIZONTAL_PADDING = 16;
-const CARD_WIDTH = (width * 0.92 - (HORIZONTAL_PADDING * 2) - (CARD_GAP * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
+// Full width modal now, so use full screen width
+const CARD_WIDTH = (width - (HORIZONTAL_PADDING * 2) - (CARD_GAP * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
 
 // Product Card for grid display
 const GridProductCard = ({ product, onPress }) => {
@@ -31,6 +31,10 @@ const GridProductCard = ({ product, onPress }) => {
   const isOutOfStock = stockQuantity === 0 || !inStock;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
   const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -61,28 +65,32 @@ const GridProductCard = ({ product, onPress }) => {
           </View>
         )}
         
-        {/* Low Stock Badge - Priority over Trending */}
-        {isLowStock && !isOutOfStock && (
+        {/* Trending Badge - Top Left */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        
+        {/* Low Stock Badge - Bottom Left */}
+        {showLowStock && (
           <View style={styles.lowStockBadge}>
             <View style={styles.lowStockDot} />
             <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
           </View>
         )}
-        
-        {/* Trending Badge - Only if not low stock */}
-        {isTrending && !isLowStock && !isOutOfStock && (
-          <View style={styles.trendingBadge}>
-            <Text style={styles.fireEmoji}>🔥</Text>
-          </View>
-        )}
 
-        {/* Add to cart button */}
+        {/* Add to cart button - tapping opens product modal */}
         {!isOutOfStock && (
-          <View style={styles.addButtonContainer}>
+          <TouchableOpacity 
+            style={styles.addButtonContainer}
+            onPress={() => onPress(product)}
+            activeOpacity={0.8}
+          >
             <View style={styles.addButton}>
-              <Ionicons name="add" size={16} color="#FFF" />
+              <Ionicons name="add" size={12} color={theme.colors.textMuted} />
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       </View>
       <Text style={[styles.cardName, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>
@@ -111,9 +119,8 @@ export const ViewAllModal = ({
   products = [],
   categoryName = 'Products',
   categoryIcon = null,
+  categoryIconType = 'material',
   categoryColor = theme.colors.text,
-  onAddToCart,
-  onViewCart,
 }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -125,26 +132,26 @@ export const ViewAllModal = ({
 
   const handleProductModalClose = () => {
     setProductModalVisible(false);
-    // Don't clear selectedProduct immediately to allow smooth animation
     setTimeout(() => setSelectedProduct(null), 300);
   };
 
-  const handleViewCart = () => {
-    setProductModalVisible(false);
-    onClose();
-    onViewCart?.();
+  // Render icon based on type
+  const renderIcon = () => {
+    if (!categoryIcon) return null;
+    if (categoryIconType === 'ionicons') {
+      return <Ionicons name={categoryIcon} size={20} color={categoryColor} />;
+    }
+    return <MaterialCommunityIcons name={categoryIcon} size={20} color={categoryColor} />;
   };
 
-  if (!visible) return null;
-
   return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={onClose}
-      >
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+    >
         <View style={styles.overlay}>
           {/* Backdrop */}
           <TouchableOpacity 
@@ -153,14 +160,14 @@ export const ViewAllModal = ({
             onPress={onClose}
           />
           
-          {/* Modal Content */}
+          {/* Modal Content - slides from bottom */}
           <View style={styles.modalContent}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 {categoryIcon && (
                   <View style={[styles.headerIcon, { backgroundColor: categoryColor + '20' }]}>
-                    {categoryIcon}
+                    {renderIcon()}
                   </View>
                 )}
                 <View>
@@ -196,16 +203,14 @@ export const ViewAllModal = ({
             )}
           </View>
         </View>
-      </Modal>
 
-      {/* Product Modal - Opens on top of View All Modal */}
-      <ProductModal
-        visible={productModalVisible}
-        product={selectedProduct}
-        onClose={handleProductModalClose}
-        onViewCart={handleViewCart}
-      />
-    </>
+        {/* Embedded Product Modal - renders inside ViewAllModal */}
+        <EmbeddedProductModal
+          visible={productModalVisible}
+          product={selectedProduct}
+          onClose={handleProductModalClose}
+        />
+      </Modal>
   );
 };
 
@@ -213,8 +218,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   backdrop: {
     position: 'absolute',
@@ -224,10 +228,11 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   modalContent: {
-    width: '92%',
-    maxHeight: height * 0.85,
+    width: '100%',
+    maxHeight: height * 0.9,
     backgroundColor: theme.colors.background,
-    borderRadius: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     overflow: 'hidden',
     zIndex: 100,
   },
@@ -351,17 +356,14 @@ const styles = StyleSheet.create({
     right: 6,
   },
   addButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: theme.colors.secondary,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   cardName: {
     fontSize: 11,

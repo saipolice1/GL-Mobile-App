@@ -58,6 +58,14 @@ const ProductCard = ({ product, onPress, onAddToCart }) => {
     : undefined;
   const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
   const isOutOfStock = stockQuantity === 0 || !inStock;
+  
+  // Check for low stock and trending
+  const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -78,13 +86,26 @@ const ProductCard = ({ product, onPress, onAddToCart }) => {
             </View>
           </View>
         )}
+        {/* Trending Badge - Top Left */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        {/* Low Stock Badge - Bottom Left */}
+        {showLowStock && (
+          <View style={styles.lowStockBadge}>
+            <View style={styles.lowStockDot} />
+            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
+          </View>
+        )}
         {!isOutOfStock && (
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => onAddToCart?.(product)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={14} color={theme.colors.textLight} />
+            <Ionicons name="add" size={12} color={theme.colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -627,16 +648,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
+  trendingBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  fireEmoji: {
+    fontSize: 10,
+  },
+  lowStockBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 3,
+  },
+  lowStockDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#EF4444',
+  },
+  lowStockText: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   addButton: {
     position: 'absolute',
     bottom: 4,
     right: 4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: theme.colors.secondary,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   productInfo: {
     paddingTop: 4,

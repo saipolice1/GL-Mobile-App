@@ -15,6 +15,11 @@ const HorizontalProductCard = ({ product, onPress }) => {
   const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
   const isOutOfStock = stockQuantity === 0 || !inStock;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -25,8 +30,8 @@ const HorizontalProductCard = ({ product, onPress }) => {
       <View style={styles.imageContainer}>
         <WixMediaImage
           media={product.media?.mainMedia?.image?.url}
-          width={120}
-          height={120}
+          width={100}
+          height={100}
         >
           {({ url }) => (
             <Image 
@@ -42,19 +47,27 @@ const HorizontalProductCard = ({ product, onPress }) => {
             </View>
           </View>
         )}
-        {isLowStock && !isOutOfStock && (
+        {/* Trending Badge - Top Left */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        {/* Low Stock Badge - Bottom Left */}
+        {showLowStock && (
           <View style={styles.lowStockBadge}>
             <View style={styles.lowStockDot} />
             <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
           </View>
         )}
+        {/* Smaller Add Button with muted color */}
         {!isOutOfStock && (
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => onPress(product)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={16} color="#FFF" />
+            <Ionicons name="add" size={14} color={theme.colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -65,7 +78,7 @@ const HorizontalProductCard = ({ product, onPress }) => {
 };
 
 // Collection Row - fetches products from a SINGLE Wix collection by slug
-const CollectionRow = ({ collectionSlug, collectionName, collectionIcon, collectionIconType, collectionColor, allCollections, onProductPress }) => {
+const CollectionRow = ({ collectionSlug, collectionName, collectionIcon, collectionIconType, collectionColor, allCollections, onProductPress, onViewAll }) => {
   // Find the collection ID from slug
   const collection = allCollections.find(c => c.slug === collectionSlug);
   const collectionId = collection?._id;
@@ -145,6 +158,21 @@ const CollectionRow = ({ collectionSlug, collectionName, collectionIcon, collect
           <Text style={styles.title}>{collectionName}</Text>
           <Text style={styles.count}>({products.length})</Text>
         </View>
+        {/* View All Button */}
+        <TouchableOpacity 
+          style={styles.viewAllButton}
+          onPress={() => onViewAll?.({
+            name: collectionName,
+            products: products,
+            icon: iconName,
+            iconType: iconType,
+            color: iconColor,
+          })}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.viewAllText}>View All</Text>
+          <Ionicons name="chevron-forward" size={14} color={theme.colors.accent} />
+        </TouchableOpacity>
       </View>
       <ScrollView
         horizontal
@@ -178,6 +206,7 @@ export const CategoryProductsGrouped = ({
   collections = [], 
   categorySlug, 
   onProductPress,
+  onViewAll,
   onScroll,
   ListHeaderComponent,
   ListFooterComponent,
@@ -224,6 +253,7 @@ export const CategoryProductsGrouped = ({
             collectionColor={displayCol.color}
             allCollections={collections}
             onProductPress={onProductPress}
+            onViewAll={onViewAll}
           />
         ))}
       </View>
@@ -275,18 +305,30 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontWeight: '400',
   },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
   scrollContent: {
     paddingHorizontal: 16,
     gap: 12,
   },
   // Card styles
   card: {
-    width: 130,
+    width: 100,
   },
   imageContainer: {
-    width: 130,
-    height: 130,
-    borderRadius: 12,
+    width: 100,
+    height: 100,
+    borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: theme.colors.surface,
     position: 'relative',
@@ -321,37 +363,51 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.secondary,
+    bottom: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   lowStockBadge: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
+    bottom: 4,
+    left: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 3,
   },
   lowStockDot: {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: 3,
     backgroundColor: '#EF4444',
   },
   lowStockText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '600',
-    color: '#333',
+    color: '#FFFFFF',
+  },
+  trendingBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  fireEmoji: {
+    fontSize: 10,
   },
   name: {
     fontSize: 13,

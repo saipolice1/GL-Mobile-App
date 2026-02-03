@@ -33,9 +33,9 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
   const isLowStock = (stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5) ||
     (product?.stock?.inventoryStatus === 'PARTIALLY_OUT_OF_STOCK');
 
-  // LOW STOCK takes priority - never show both badges
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
-  const showTrending = isTrending && !isOutOfStock && !isLowStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -81,7 +81,7 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={20} color={theme.colors.secondary} />
+            <Ionicons name="add" size={14} color={theme.colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -165,25 +165,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  // Improved Add Button - White background with shadow for better visibility
+  // Improved Add Button - Smaller with muted color
   addButton: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#FFFFFF',
+    bottom: 6,
+    right: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    // Strong shadow for visibility on any image
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 1.5,
-    borderColor: theme.colors.secondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   info: {
     paddingTop: 6,

@@ -14,9 +14,9 @@ const RecentlyViewedCard = ({ product, onPress }) => {
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
   const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
-  // LOW STOCK takes priority - never show both badges
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
-  const showTrending = isTrending && !isOutOfStock && !isLowStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -37,16 +37,16 @@ const RecentlyViewedCard = ({ product, onPress }) => {
             />
           )}
         </WixMediaImage>
-        {/* Low Stock Badge - Priority over Trending */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-          </View>
-        )}
-        {/* Trending Badge - Only if NOT low stock */}
+        {/* Trending Badge - Top Left */}
         {showTrending && (
           <View style={styles.trendingBadge}>
             <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        {/* Low Stock Badge - Bottom Left */}
+        {showLowStock && (
+          <View style={styles.lowStockBadge}>
+            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
           </View>
         )}
       </View>

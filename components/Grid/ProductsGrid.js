@@ -15,6 +15,17 @@ import { theme } from "../../styles/theme";
 const screenWidth = Dimensions.get("window").width;
 
 const ProductCard = ({ item, onPress }) => {
+  // Check stock and badge status
+  const stockQuantity = item?.stock?.quantity;
+  const inStock = item?.stock?.inStock !== false && item?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
+  const isOutOfStock = stockQuantity === 0 || !inStock;
+  const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
+  const isTrending = item?.ribbon === 'Best Seller' || item?.ribbons?.length > 0;
+  
+  // Show BOTH badges
+  const showLowStock = isLowStock && !isOutOfStock;
+  const showTrending = isTrending && !isOutOfStock;
+
   return useMemo(() => {
     return (
       <View style={styles.container}>
@@ -24,38 +35,62 @@ const ProductCard = ({ item, onPress }) => {
             onPress(item);
           }}
         >
-          <WixMediaImage
-            media={item.media.mainMedia.image.url}
-            width={screenWidth / 2 - 20}
-            height={screenWidth / 2}
-          >
-            {({ url }) => {
-              return (
-                <Image
-                  style={[
-                    styles.image,
-                    {
-                      width: screenWidth / 2 - 20, // Adjust the width as needed
-                      height: screenWidth / 2,
-                    },
-                  ]}
-                  source={{
-                    uri: url,
-                  }}
-                />
-              );
-            }}
-          </WixMediaImage>
-          <Text style={styles.title} numberOfLines={2}>{item.name}</Text>
+          <View style={styles.imageWrapper}>
+            <WixMediaImage
+              media={item.media.mainMedia.image.url}
+              width={screenWidth / 2 - 20}
+              height={screenWidth / 2}
+            >
+              {({ url }) => {
+                return (
+                  <Image
+                    style={[
+                      styles.image,
+                      {
+                        width: screenWidth / 2 - 20,
+                        height: screenWidth / 2,
+                      },
+                      isOutOfStock && styles.imageGrayedOut,
+                    ]}
+                    source={{
+                      uri: url,
+                    }}
+                  />
+                );
+              }}
+            </WixMediaImage>
+            {/* Sold Out Badge */}
+            {isOutOfStock && (
+              <View style={styles.soldOutOverlay}>
+                <View style={styles.soldOutBadge}>
+                  <Text style={styles.soldOutText}>SOLD OUT</Text>
+                </View>
+              </View>
+            )}
+            {/* Trending Badge - Top Left */}
+            {showTrending && (
+              <View style={styles.trendingBadge}>
+                <Text style={styles.fireEmoji}>🔥</Text>
+              </View>
+            )}
+            {/* Low Stock Badge - Bottom Left */}
+            {showLowStock && (
+              <View style={styles.lowStockBadge}>
+                <View style={styles.lowStockDot} />
+                <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.title, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>{item.name}</Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>
+            <Text style={[styles.price, isOutOfStock && styles.textGrayedOut]}>
               {item.convertedPriceData?.formatted?.price}
             </Text>
           </View>
         </Pressable>
       </View>
     );
-  }, [item]);
+  }, [item, isOutOfStock, showTrending, showLowStock, stockQuantity]);
 };
 export const ProductsGrid = memo(({ data, scrollOffsetY, onPress }) => {
   return (
@@ -104,6 +139,67 @@ const styles = StyleSheet.create({
   image: {
     borderRadius: 12,
     backgroundColor: theme.colors.surfaceVariant,
+  },
+  imageWrapper: {
+    position: 'relative',
+  },
+  imageGrayedOut: {
+    opacity: 0.4,
+  },
+  textGrayedOut: {
+    color: theme.colors.textMuted,
+  },
+  soldOutOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  soldOutBadge: {
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 4,
+  },
+  soldOutText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  trendingBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  fireEmoji: {
+    fontSize: 14,
+  },
+  lowStockBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+  },
+  lowStockDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  lowStockText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   title: {
     textAlign: "left",

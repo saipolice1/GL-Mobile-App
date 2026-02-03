@@ -20,6 +20,7 @@ import { CategoryProductsSection } from '../../components/Home/CategoryProductsS
 import { CategoryProductsGrouped } from '../../components/Home/CategoryProductsGrouped';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
 import { WishlistModal } from '../../components/Wishlist/WishlistModal';
+import { ViewAllModal } from '../../components/ViewAllModal/ViewAllModal';
 import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
 import { getBestSellers, listRecommendationAlgorithms } from '../../utils/wixRecommendations';
@@ -33,6 +34,8 @@ export const HomeScreen = ({ navigation }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [wishlistModalVisible, setWishlistModalVisible] = useState(false);
+  const [viewAllModalVisible, setViewAllModalVisible] = useState(false);
+  const [viewAllData, setViewAllData] = useState(null);
   const [currentCollectionId, setCurrentCollectionId] = useState(null);
   const [sortBy, setSortBy] = useState('default');
   const [filterBy, setFilterBy] = useState('all');
@@ -359,20 +362,21 @@ export const HomeScreen = ({ navigation }) => {
     setWishlistModalVisible(true);
   }, []);
 
-  // Handle wishlist item press
-  const handleWishlistItemPress = useCallback((item) => {
-    // Convert wishlist item to product format for modal
-    const product = {
-      _id: item.id,
-      name: item.name,
-      priceData: {
-        formatted: { price: item.price, discountedPrice: item.discountedPrice },
-      },
-      media: {
-        mainMedia: { image: { url: item.image } },
-      },
-      slug: item.slug,
-    };
+  // Handle wishlist item press - receives already converted product from WishlistModal
+  const handleWishlistItemPress = useCallback((product) => {
+    setSelectedProduct(product);
+    setProductModalVisible(true);
+  }, []);
+
+  // Handle View All press from subcategory sliders
+  const handleViewAll = useCallback((data) => {
+    // data contains: { name, products, icon, iconType, color }
+    setViewAllData(data);
+    setViewAllModalVisible(true);
+  }, []);
+
+  // Handle product press from ViewAllModal - no longer used, ViewAllModal has its own ProductModal
+  const handleViewAllProductPress = useCallback((product) => {
     setSelectedProduct(product);
     setProductModalVisible(true);
   }, []);
@@ -440,6 +444,7 @@ export const HomeScreen = ({ navigation }) => {
             categorySlug={selectedCategory}
             CATEGORIES_DATA={CATEGORIES_DATA}
             onProductPress={handleProductPress}
+            onViewAll={handleViewAll}
             isLoading={isLoadingProducts}
             onScroll={handleScroll}
             ListHeaderComponent={
@@ -526,7 +531,20 @@ export const HomeScreen = ({ navigation }) => {
       <WishlistModal
         visible={wishlistModalVisible}
         onClose={() => setWishlistModalVisible(false)}
-        onProductPress={handleWishlistItemPress}
+      />
+
+      {/* View All Modal - for subcategory products */}
+      <ViewAllModal
+        visible={viewAllModalVisible}
+        onClose={() => {
+          setViewAllModalVisible(false);
+          setViewAllData(null);
+        }}
+        products={viewAllData?.products || []}
+        categoryName={viewAllData?.name || 'Products'}
+        categoryIcon={viewAllData?.icon}
+        categoryIconType={viewAllData?.iconType}
+        categoryColor={viewAllData?.color}
       />
     </SafeAreaView>
   );

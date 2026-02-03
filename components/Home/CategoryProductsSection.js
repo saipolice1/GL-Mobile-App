@@ -16,9 +16,9 @@ const HorizontalProductCard = ({ product, onPress }) => {
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
   const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
-  // LOW STOCK takes priority - never show both badges
+  // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
-  const showTrending = isTrending && !isOutOfStock && !isLowStock;
+  const showTrending = isTrending && !isOutOfStock;
 
   return (
     <TouchableOpacity 
@@ -46,27 +46,27 @@ const HorizontalProductCard = ({ product, onPress }) => {
             </View>
           </View>
         )}
-        {/* Low Stock Badge - Priority over Trending */}
+        {/* Trending Badge - Top Left */}
+        {showTrending && (
+          <View style={styles.trendingBadge}>
+            <Text style={styles.fireEmoji}>🔥</Text>
+          </View>
+        )}
+        {/* Low Stock Badge - Bottom Left */}
         {showLowStock && (
           <View style={styles.lowStockBadge}>
             <View style={styles.lowStockDot} />
             <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
           </View>
         )}
-        {/* Trending Badge - Only if NOT low stock */}
-        {showTrending && (
-          <View style={styles.trendingBadge}>
-            <Text style={styles.fireEmoji}>🔥</Text>
-          </View>
-        )}
-        {/* Improved Add Button */}
+        {/* Smaller Add Button with muted color */}
         {!isOutOfStock && (
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => onPress(product)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={18} color={theme.colors.secondary} />
+            <Ionicons name="add" size={14} color={theme.colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -276,19 +276,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#FFFFFF',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 1.5,
-    borderColor: theme.colors.secondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   lowStockBadge: {
     position: 'absolute',
