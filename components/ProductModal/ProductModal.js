@@ -36,6 +36,9 @@ export const ProductModal = ({
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [isProductFavorite, setIsProductFavorite] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+  // Track quantities for similar and recently viewed products
+  const [similarQuantities, setSimilarQuantities] = useState({});
+  const [recentQuantities, setRecentQuantities] = useState({});
   const queryClient = useQueryClient();
 
   // Update currentProduct when initialProduct changes
@@ -125,29 +128,52 @@ export const ProductModal = ({
   // Add to cart mutation
   const addToCartMutation = useMutation({
     mutationFn: async () => {
-      return wixCient.currentCart.addToCurrentCart({
-        lineItems: [
-          {
-            quantity,
+      // Build line items array with main product and selected similar/recent products
+      const lineItems = [
+        {
+          quantity,
+          catalogReference: {
+            appId: '1380b703-ce81-ff05-f115-39571d94dfcd',
+            catalogItemId: currentProduct._id,
+            options: Object.keys(selectedOptions).length > 0 
+              ? { options: selectedOptions } 
+              : undefined,
+          },
+        },
+      ];
+
+      // Add similar products with quantities > 0
+      Object.entries(similarQuantities).forEach(([productId, qty]) => {
+        if (qty > 0) {
+          lineItems.push({
+            quantity: qty,
             catalogReference: {
               appId: '1380b703-ce81-ff05-f115-39571d94dfcd',
-              catalogItemId: currentProduct._id,
-              options: Object.keys(selectedOptions).length > 0 
-                ? { options: selectedOptions } 
-                : undefined,
+              catalogItemId: productId,
             },
-          },
-        ],
+          });
+        }
       });
+
+      // Add recently viewed products with quantities > 0
+      Object.entries(recentQuantities).forEach(([productId, qty]) => {
+        if (qty > 0) {
+          lineItems.push({
+            quantity: qty,
+            catalogReference: {
+              appId: '1380b703-ce81-ff05-f115-39571d94dfcd',
+              catalogItemId: productId,
+            },
+          });
+        }
+      });
+
+      return wixCient.currentCart.addToCurrentCart({ lineItems });
     },
     onSuccess: (response) => {
       queryClient.setQueryData(['currentCart'], response.cart);
-      // Show success feedback instead of closing
-      setAddedToCart(true);
-      // Reset quantity for potential additional adds
-      setQuantity(1);
-      // Clear the feedback after 2 seconds
-      setTimeout(() => setAddedToCart(false), 2000);
+      // Close modal after adding to cart
+      onClose();
     },
     onError: (error) => {
       console.log('Add to cart error:', error);
@@ -341,10 +367,16 @@ export const ProductModal = ({
                   contentContainerStyle={styles.similarContainer}
                 >
                   {similarProducts.map((item) => (
-                    <SimilarProductCard 
+                    <SimilarProductCardWithQuantity 
                       key={item._id} 
                       product={item}
-                      onPress={() => handleSwitchProduct(item)}
+                      quantity={similarQuantities[item._id] || 0}
+                      onQuantityChange={(delta) => {
+                        setSimilarQuantities(prev => ({
+                          ...prev,
+                          [item._id]: Math.max(0, (prev[item._id] || 0) + delta)
+                        }));
+                      }}
                     />
                   ))}
                 </ScrollView>
@@ -361,10 +393,16 @@ export const ProductModal = ({
                   contentContainerStyle={styles.similarContainer}
                 >
                   {recentlyViewed.map((item) => (
-                    <SimilarProductCard 
+                    <SimilarProductCardWithQuantity 
                       key={item._id} 
                       product={item}
-                      onPress={() => handleSwitchProduct(item)}
+                      quantity={recentQuantities[item._id] || 0}
+                      onQuantityChange={(delta) => {
+                        setRecentQuantities(prev => ({
+                          ...prev,
+                          [item._id]: Math.max(0, (prev[item._id] || 0) + delta)
+                        }));
+                      }}
                     />
                   ))}
                 </ScrollView>
@@ -415,13 +453,13 @@ export const ProductModal = ({
   );
 };
 
-// Similar Product Card Component - Tappable to switch products
-const SimilarProductCard = ({ product, onPress }) => {
+// Similar Product Card Component - With +/- buttons
+const SimilarProductCardWithQuantity = ({ product, quantity, onQuantityChange }) => {
   const price = product.priceData?.formatted?.price || 
     `$${Number.parseFloat(product.priceData?.price || 0).toFixed(2)}`;
 
   return (
-    <TouchableOpacity style={styles.similarCard} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.similarCard}>
       <WixMediaImage
         media={product.media?.mainMedia?.image?.url}
         width={80}
@@ -438,7 +476,29 @@ const SimilarProductCard = ({ product, onPress }) => {
         {product.name}
       </Text>
       <Text style={styles.similarPrice}>{price}</Text>
-    </TouchableOpacity>
+      
+      {/* Quantity Controls */}
+      <View style={styles.similarQuantityContainer}>
+        <TouchableOpacity
+          style={[styles.similarQuantityButton, quantity === 0 && styles.similarQuantityButtonDisabled]}
+          onPress={() => onQuantityChange(-1)}
+          disabled={quantity === 0}
+        >
+          <Ionicons 
+            name="remove" 
+            size={16} 
+            color={quantity === 0 ? theme.colors.textMuted : theme.colors.text} 
+          />
+        </TouchableOpacity>
+        <Text style={styles.similarQuantityText}>{quantity}</Text>
+        <TouchableOpacity
+          style={styles.similarQuantityButton}
+          onPress={() => onQuantityChange(1)}
+        >
+          <Ionicons name="add" size={16} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -652,6 +712,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: theme.colors.accent,
+    marginBottom: 6,
+  },
+  similarQuantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  similarQuantityButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  similarQuantityButtonDisabled: {
+    opacity: 0.4,
+  },
+  similarQuantityText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    minWidth: 24,
+    textAlign: 'center',
   },
   footer: {
     position: 'absolute',
