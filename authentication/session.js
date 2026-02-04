@@ -104,6 +104,12 @@ export function WixSessionProvider(props) {
       
   }, [newVisitorSession, props.clientId]);
 
+  // Check if user is logged in (has refresh token = member session)
+  // This must be before any conditional returns to follow Rules of Hooks
+  const isLoggedIn = React.useMemo(() => {
+    return !!(session?.accessToken && session?.refreshToken);
+  }, [session]);
+
   if (!session && sessionLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -117,11 +123,6 @@ export function WixSessionProvider(props) {
   if (!session && sessionError) {
     console.warn("Wix session failed to initialize, proceeding without authentication");
   }
-
-  // Check if user is logged in (has refresh token = member session)
-  const isLoggedIn = React.useMemo(() => {
-    return !!(session?.accessToken && session?.refreshToken);
-  }, [session]);
 
   return (
     <WixSessionContext.Provider
