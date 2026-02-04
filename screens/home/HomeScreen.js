@@ -20,6 +20,7 @@ import { CategoryProductsSection } from '../../components/Home/CategoryProductsS
 import { CategoryProductsGrouped } from '../../components/Home/CategoryProductsGrouped';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
 import { WishlistModal } from '../../components/Wishlist/WishlistModal';
+import { NotificationsModal } from '../../components/Notifications/NotificationsModal';
 import { ViewAllModal } from '../../components/ViewAllModal/ViewAllModal';
 import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
@@ -34,6 +35,7 @@ export const HomeScreen = ({ navigation }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [wishlistModalVisible, setWishlistModalVisible] = useState(false);
+  const [notificationsModalVisible, setNotificationsModalVisible] = useState(false);
   const [viewAllModalVisible, setViewAllModalVisible] = useState(false);
   const [viewAllData, setViewAllData] = useState(null);
   const [currentCollectionId, setCurrentCollectionId] = useState(null);
@@ -140,26 +142,19 @@ export const HomeScreen = ({ navigation }) => {
 
         if (selectedCategory === 'trending') {
           // Use Wix Recommendations API for best sellers
-          console.log('Fetching best sellers via Wix Recommendations API...');
           
           // Get best sellers using the Recommendations API (21 products)
           const bestSellers = await getBestSellers(21);
           
           if (bestSellers.length > 0) {
-            console.log(`Best Sellers: Found ${bestSellers.length} products via Recommendations API`);
             return bestSellers;
           }
           
           // Fallback: this should not happen as getBestSellers has its own fallback
-          console.log('Unexpected: No best sellers returned');
           return [];
         } else {
           // Find collection by slug
           let collection = collections.find(c => c.slug === selectedCategory);
-          
-          // Log for debugging
-          console.log(`Looking for collection: "${selectedCategory}"`);
-          console.log(`Found: ${collection ? `"${collection.name}" (${collection.slug})` : 'NOT FOUND'}`);
           
           // If not found, try multiple matching strategies
           if (!collection) {
@@ -167,7 +162,6 @@ export const HomeScreen = ({ navigation }) => {
             
             // Skip if this category uses displayCollections (handled by CategoryProductsGrouped)
             if (categoryData?.displayCollections) {
-              console.log(`Category "${selectedCategory}" uses displayCollections - skipping main fetch`);
               return []; // CategoryProductsGrouped handles this
             }
             
@@ -178,8 +172,6 @@ export const HomeScreen = ({ navigation }) => {
               selectedCategory.replace(/-/g, ''),
               categoryData?.name?.toLowerCase(),
             ].filter(Boolean);
-            
-            console.log('Trying search terms:', searchTerms);
             
             // Try to find a matching collection
             collection = collections.find(c => {
@@ -194,10 +186,6 @@ export const HomeScreen = ({ navigation }) => {
                 term.includes(cName)
               );
             });
-            
-            if (collection) {
-              console.log(`Matched by search terms: "${collection.name}" (${collection.slug})`);
-            }
           }
           
           // Strategy 3: For simple categories without displayCollections, try parent slug matching
@@ -206,7 +194,6 @@ export const HomeScreen = ({ navigation }) => {
             
             // Skip if this category uses displayCollections (handled by CategoryProductsGrouped)
             if (categoryData?.displayCollections) {
-              console.log(`Category "${selectedCategory}" has displayCollections - skipping main fetch`);
               return []; // CategoryProductsGrouped handles this
             }
             
@@ -360,6 +347,11 @@ export const HomeScreen = ({ navigation }) => {
     setWishlistModalVisible(true);
   }, []);
 
+  // Handle notifications press
+  const handleNotificationsPress = useCallback(() => {
+    setNotificationsModalVisible(true);
+  }, []);
+
   // Handle wishlist item press - receives already converted product from WishlistModal
   const handleWishlistItemPress = useCallback((product) => {
     setSelectedProduct(product);
@@ -410,7 +402,7 @@ export const HomeScreen = ({ navigation }) => {
       <View style={styles.fixedHeader}>
         {/* Logo - fades on scroll */}
         <Animated.View style={[styles.logoContainer, { opacity: logoOpacity, height: logoHeight }]}>
-          <LogoHeader compact onWishlistPress={handleWishlistPress} />
+          <LogoHeader compact onWishlistPress={handleWishlistPress} onNotificationsPress={handleNotificationsPress} />
         </Animated.View>
         
         {/* Category Slider - Always visible */}
@@ -530,6 +522,12 @@ export const HomeScreen = ({ navigation }) => {
       <WishlistModal
         visible={wishlistModalVisible}
         onClose={() => setWishlistModalVisible(false)}
+      />
+
+      {/* Notifications Modal */}
+      <NotificationsModal
+        visible={notificationsModalVisible}
+        onClose={() => setNotificationsModalVisible(false)}
       />
 
       {/* View All Modal - for subcategory products */}

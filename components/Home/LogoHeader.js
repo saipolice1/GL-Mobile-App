@@ -10,7 +10,7 @@ const BRAND_ORANGE = '#D4632A';
 const BRAND_GOLD = '#B8860B';
 const BRAND_CREAM = '#F5F0E6';
 
-export const LogoHeader = ({ compact = false, onWishlistPress }) => {
+export const LogoHeader = ({ compact = false, onWishlistPress, onNotificationsPress }) => {
   const [wishlistCount, setWishlistCount] = useState(0);
 
   useEffect(() => {
@@ -39,23 +39,37 @@ export const LogoHeader = ({ compact = false, onWishlistPress }) => {
             <Text style={styles.compactLiquorText}>LIQUOR</Text>
           </View>
           
-          {/* Wishlist Button - Right Side */}
-          {onWishlistPress && (
-            <TouchableOpacity 
-              style={styles.wishlistButton}
-              onPress={onWishlistPress}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="heart-outline" size={24} color={BRAND_BROWN} />
-              {wishlistCount > 0 && (
-                <View style={styles.wishlistBadge}>
-                  <Text style={styles.wishlistBadgeText}>
-                    {wishlistCount > 99 ? '99+' : wishlistCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )}
+          {/* Action Buttons Row - Right Side */}
+          <View style={styles.actionButtonsRow}>
+            {/* Wishlist Button */}
+            {onWishlistPress && (
+              <TouchableOpacity 
+                style={styles.wishlistButton}
+                onPress={onWishlistPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="heart-outline" size={24} color={BRAND_BROWN} />
+                {wishlistCount > 0 && (
+                  <View style={styles.wishlistBadge}>
+                    <Text style={styles.wishlistBadgeText}>
+                      {wishlistCount > 99 ? '99+' : wishlistCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+            
+            {/* Notifications Button */}
+            {onNotificationsPress && (
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={onNotificationsPress}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="notifications-outline" size={24} color={BRAND_BROWN} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -63,23 +77,37 @@ export const LogoHeader = ({ compact = false, onWishlistPress }) => {
 
   return (
     <View style={styles.container}>
-      {/* Wishlist Button - Top Right */}
-      {onWishlistPress && (
-        <TouchableOpacity 
-          style={styles.wishlistButtonAbsolute}
-          onPress={onWishlistPress}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="heart-outline" size={26} color={BRAND_BROWN} />
-          {wishlistCount > 0 && (
-            <View style={styles.wishlistBadge}>
-              <Text style={styles.wishlistBadgeText}>
-                {wishlistCount > 99 ? '99+' : wishlistCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      )}
+      {/* Action Buttons - Top Right */}
+      <View style={styles.actionButtonsAbsolute}>
+        {/* Wishlist Button */}
+        {onWishlistPress && (
+          <TouchableOpacity 
+            style={styles.wishlistButtonAbsolute}
+            onPress={onWishlistPress}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="heart-outline" size={26} color={BRAND_BROWN} />
+            {wishlistCount > 0 && (
+              <View style={styles.wishlistBadge}>
+                <Text style={styles.wishlistBadgeText}>
+                  {wishlistCount > 99 ? '99+' : wishlistCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+        
+        {/* Notifications Button */}
+        {onNotificationsPress && (
+          <TouchableOpacity 
+            style={styles.notificationButtonAbsolute}
+            onPress={onNotificationsPress}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="notifications-outline" size={26} color={BRAND_BROWN} />
+          </TouchableOpacity>
+        )}
+      </View>
       
       <View style={styles.logoContainer}>
         {/* Top decorative line */}
@@ -251,14 +279,34 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     opacity: 0.8,
   },
-  // Wishlist button styles
-  wishlistButton: {
-    padding: 8,
+  // Action buttons row
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     position: 'absolute',
     right: 0,
     top: '50%',
     transform: [{ translateY: -20 }],
+  },
+  actionButtonsAbsolute: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    flexDirection: 'row',
+    gap: 12,
     zIndex: 10,
+  },
+  // Notification button styles
+  notificationButton: {
+    padding: 8,
+  },
+  notificationButtonAbsolute: {
+    padding: 8,
+  },
+  // Wishlist button styles
+  wishlistButton: {
+    padding: 8,
   },
   wishlistButtonAbsolute: {
     position: 'absolute',

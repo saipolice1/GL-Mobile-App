@@ -104,11 +104,9 @@ const FormInput = ({ labelValue, placeholderText, inputValue, onChangeText, ...r
   );
 };
 
-const MemberForm = () => {
-  const { firstName, lastName, phone, updateContact } = useMemberHandler();
-  const queryClient = useQueryClient();
+const MemberForm = ({ member }) => {
+  const { firstName, lastName, phone, loginEmail, updateContact, currentMemberId } = useMemberHandler();
 
-  const member = queryClient.getQueryData(["currentMember"])?.member;
   return (
     <View style={styles.accountInfo}>
       <Text style={styles.accountInfoTitle}>Account</Text>
@@ -117,7 +115,7 @@ const MemberForm = () => {
       </Text>
       <Text style={styles.accountInfoText}>Login Email:</Text>
       <Text style={styles.accountInfoText}>
-        {member?.loginEmail || "No email found"}
+        {loginEmail || member?.loginEmail || member?.profile?.nickname || "No email found"}
       </Text>
       <Text style={styles.accountInfoSmallText}>
         Your Login email can't be changed.
@@ -127,7 +125,7 @@ const MemberForm = () => {
         labelValue={"First Name"}
         placeholderText={"First Name"}
         onChangeText={(text) =>
-          updateContact({ firstName: text, lastName, phone })
+          updateContact({ firstName: text, lastName, phone }, currentMemberId)
         }
       />
       <FormInput
@@ -135,7 +133,7 @@ const MemberForm = () => {
         labelValue={"Last Name"}
         placeholderText={"Last Name"}
         onChangeText={(text) =>
-          updateContact({ lastName: text, firstName, phone })
+          updateContact({ lastName: text, firstName, phone }, currentMemberId)
         }
       />
       <FormInput
@@ -143,151 +141,13 @@ const MemberForm = () => {
         labelValue={"Phone"}
         placeholderText={"Phone"}
         onChangeText={(text) =>
-          updateContact({ phone: text, firstName, lastName })
+          updateContact({ phone: text, firstName, lastName }, currentMemberId)
         }
         keyboardType={"phone-pad"}
       />
     </View>
   );
 };
-
-const BackInStockSubscriptions = () => {
-  const { session } = useWixSession();
-  const queryClient = useQueryClient();
-
-  const subscriptionsQuery = useQuery({
-    queryKey: ["back-in-stock-subscriptions", session],
-    queryFn: async () => {
-      const res = await wixCient.fetchWithAuth(
-        `https://www.wixapis.com/wix-data/v2/items/query`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            dataCollectionId: "BackInStockSubscriptions",
-            query: {
-              filter: {
-                notified: false,
-              },
-            },
-          }),
-        },
-      );
-      return res.json();
-    },
-  });
-
-  const removeSubscriptionMutation = useMutation({
-    mutationFn: async (itemId) => {
-      const res = await wixCient.fetchWithAuth(
-        `https://www.wixapis.com/wix-data/v2/items/${itemId}?dataCollectionId=BackInStockSubscriptions`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(["back-in-stock-subscriptions"]);
-    },
-  });
-
-  if (subscriptionsQuery.isLoading) {
-    return (
-      <MemberAccordion title="Back in Stock Notifications" defaultExpanded={false}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
-      </MemberAccordion>
-    );
-  }
-
-  if (subscriptionsQuery.isError) {
-    return (
-      <MemberAccordion title="Back in Stock Notifications" defaultExpanded={false}>
-        <RNText style={{ color: theme.colors.error }}>Failed to load subscriptions</RNText>
-      </MemberAccordion>
-    );
-  }
-
-  const subscriptions = subscriptionsQuery.data?.dataItems || [];
-
-  return (
-    <MemberAccordion title="Back in Stock Notifications" defaultExpanded={false}>
-      {subscriptions.length > 0 ? (
-        subscriptions.map((item) => (
-          <View key={item._id} style={notificationStyles.itemContainer}>
-            <View style={notificationStyles.itemInfo}>
-              <RNText style={notificationStyles.productName} numberOfLines={2}>
-                {item.data?.productName || "Unknown Product"}
-              </RNText>
-              <RNText style={notificationStyles.subscriptionDate}>
-                Subscribed: {item.data?.createdDate ? format(new Date(item.data.createdDate), "MMM dd, yyyy") : "N/A"}
-              </RNText>
-            </View>
-            <TouchableOpacity
-              onPress={() => removeSubscriptionMutation.mutate(item._id)}
-              disabled={removeSubscriptionMutation.isPending}
-              style={notificationStyles.removeButton}
-            >
-              {removeSubscriptionMutation.isPending ? (
-                <ActivityIndicator size="small" color={theme.colors.error} />
-              ) : (
-                <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-              )}
-            </TouchableOpacity>
-          </View>
-        ))
-      ) : (
-        <RNText style={{ color: theme.colors.textMuted, textAlign: 'center', paddingVertical: 20 }}>
-          You haven't subscribed to any back in stock notifications yet.
-        </RNText>
-      )}
-      <RNText style={notificationStyles.helpText}>
-        When an out-of-stock product you've subscribed to becomes available, you'll receive a push notification.
-      </RNText>
-    </MemberAccordion>
-  );
-};
-
-const notificationStyles = RNStyleSheet.create({
-  itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.surfaceVariant,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  itemInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  productName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  subscriptionDate: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-  },
-  removeButton: {
-    padding: 8,
-  },
-  helpText: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 12,
-    fontStyle: 'italic',
-  },
-});
 
 const Orders = () => {
   const { session } = useWixSession();
@@ -394,41 +254,65 @@ const Orders = () => {
 export const MemberView = ({ navigation }) => {
   const queryClient = useQueryClient();
   const { newVisitorSession, session } = useWixSession();
-  const { firstName, lastName, phone, updateContact } = useMemberHandler();
+  const { firstName, lastName, phone, updateContact, clearContact, loadContactForMember } = useMemberHandler();
   const [visibleMenu, setVisibleMenu] = useState(false);
-  const getCurrentMemberRes = useQuery({
-    queryKey: ["currentMember", session?.refreshToken],
-    queryFn: () => wixCient.members.getCurrentMember({ fieldSet: "FULL" }),
-    enabled: !!session?.refreshToken, // Only fetch when logged in (has refresh token)
-    staleTime: 0, // Always refetch
-  });
+  const [currentMember, setCurrentMember] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Use the member data from the query
-  const currentMember = getCurrentMemberRes.data?.member;
-
-  // Update contact info when member data loads
+  // Fetch current member on mount and when session changes
+  // NOTE: getCurrentMember() only returns identity info (ID, profile, nickname)
+  // Contact details come from: 1) AsyncStorage (keyed by member ID), 2) updateMember() responses
   useEffect(() => {
-    if (currentMember) {
-      console.log('MemberView: currentMember loaded:', JSON.stringify(currentMember, null, 2));
+    const fetchCurrentMember = async () => {
+      if (!session?.refreshToken) {
+        setIsLoading(false);
+        return;
+      }
       
-      // Wix may return 'contact' or 'contactInfo'
-      const contact = currentMember?.contactInfo || currentMember?.contact;
-      console.log('MemberView: contact data:', JSON.stringify(contact, null, 2));
-      
-      // Handle phones as either array of strings or array of objects
-      const phoneValue = Array.isArray(contact?.phones) 
-        ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
-        : "";
+      try {
+        setIsLoading(true);
+        const { member } = await wixCient.members.getCurrentMember({
+          fieldSet: 'FULL',
+        });
 
-      console.log('MemberView: Setting contact - firstName:', contact?.firstName, 'lastName:', contact?.lastName, 'phone:', phoneValue);
-      
-      updateContact({
-        firstName: contact?.firstName || "",
-        lastName: contact?.lastName || "",
-        phone: phoneValue || "",
-      });
-    }
-  }, [currentMember]);
+        console.log('=== MemberView: Fetched member data from Wix ===');
+        console.log('Member ID:', member._id);
+        console.log('Profile:', member.profile?.nickname);
+        
+        // Load contact data for this specific member from AsyncStorage
+        const storedContact = await loadContactForMember(member._id);
+        console.log('Loaded stored contact for member:', storedContact);
+        
+        // getCurrentMember() with member tokens doesn't return contact/loginEmail
+        // Contact details are persisted in MemberHandler (AsyncStorage per member ID)
+        // and updated from updateMember() responses
+        
+        const enrichedMember = {
+          ...member,
+          // Contact data comes from MemberHandler (loaded from AsyncStorage for this member)
+          contact: {
+            firstName: storedContact?.firstName || '',
+            lastName: storedContact?.lastName || '',
+            phones: storedContact?.phone ? [storedContact.phone] : [],
+          },
+        };
+
+        console.log('✅ Member loaded - using persisted contact data for member:', member._id);
+        console.log('   firstName:', storedContact?.firstName || '', 'lastName:', storedContact?.lastName || '', 'phone:', storedContact?.phone || '');
+
+        setCurrentMember(enrichedMember);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching member:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCurrentMember();
+  }, [session?.refreshToken, loadContactForMember]);
 
   const updateMemberMutation = useMutation({
     mutationFn: async () => {
@@ -436,8 +320,7 @@ export const MemberView = ({ navigation }) => {
         return;
       }
 
-      // Wix expects 'contact' with phones as array of strings
-      const existingContact = currentMember?.contact || currentMember?.contactInfo || {};
+      console.log('MemberView: Updating member with:', { firstName, lastName, phone });
       
       const updatedMember = {
         contact: {
@@ -452,36 +335,40 @@ export const MemberView = ({ navigation }) => {
         updatedMember,
       );
       
+      console.log('MemberView: Update result:', JSON.stringify(result, null, 2));
       return result;
     },
-    onSuccess: (updatedMember) => {
-      // Wix returns 'contact' not 'contactInfo' in the response
-      const contact = updatedMember?.contactInfo || updatedMember?.contact;
+    onSuccess: (result) => {
+      console.log('MemberView: Update successful');
       
-      // updatedMember is the member object - update the query cache
-      queryClient.setQueryData(["currentMember"], { member: updatedMember });
-
-      // Handle phones as either array of strings or array of objects
-      const phoneValue = Array.isArray(contact?.phones) 
-        ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
-        : "";
-
-      updateContact({
-        firstName: contact?.firstName || "",
-        lastName: contact?.lastName || "",
-        phone: phoneValue || "",
-      });
+      // The update response contains the full member with contact data
+      // Update local state from the response
+      if (result) {
+        setCurrentMember(result);
+        
+        const contact = result.contact;
+        // Pass member ID to ensure contact is saved to correct storage key
+        // Also save loginEmail from the response
+        updateContact({
+          firstName: contact?.firstName || "",
+          lastName: contact?.lastName || "",
+          phone: contact?.phones?.[0] || "",
+          loginEmail: result.loginEmail || "",
+        }, result._id);
+        
+        console.log('✅ Updated from response - firstName:', contact?.firstName, 'lastName:', contact?.lastName, 'phone:', contact?.phones?.[0], 'email:', result.loginEmail);
+      }
     },
     onError: (error) => {
       console.error("Update failed:", error);
     },
   });
 
-  if (getCurrentMemberRes.isError) {
-    return <ErrorView message={getCurrentMemberRes.error.message} />;
+  if (error) {
+    return <ErrorView message={error} />;
   }
 
-  if (getCurrentMemberRes.isLoading || !currentMember) {
+  if (isLoading || !currentMember) {
     return <LoadingIndicator />;
   }
 
@@ -489,9 +376,7 @@ export const MemberView = ({ navigation }) => {
     return <LoadingIndicator loadingMessage={"Updating your info..."} />;
   }
 
-  const { profile } = currentMember || {};
-  // Wix may return 'contact' or 'contactInfo'
-  const contact = currentMember?.contactInfo || currentMember?.contact;
+  const { profile, contact } = currentMember || {};
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -561,6 +446,7 @@ export const MemberView = ({ navigation }) => {
               <Menu.Item
                 leadingIcon="logout"
                 onPress={async () => {
+                  await clearContact();
                   await newVisitorSession();
                 }}
                 title="Signout"
@@ -582,9 +468,6 @@ export const MemberView = ({ navigation }) => {
         <View style={{ marginTop: 20, width: "100%" }}>
           <Orders />
         </View>
-        <View style={{ marginTop: 0, width: "100%" }}>
-          <BackInStockSubscriptions />
-        </View>
         <View style={styles.memberDetails}>
           <Text style={styles.memberDetailsTitle}>My Account</Text>
           <Text style={styles.memberDetailsSubTitle}>
@@ -601,14 +484,10 @@ export const MemberView = ({ navigation }) => {
           >
             <TouchableOpacity
               onPress={() => {
-                // Handle phones as either array of strings or array of objects
-                const phoneValue = Array.isArray(contact?.phones) 
-                  ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
-                  : "";
                 updateContact({
                   firstName: contact?.firstName || "",
                   lastName: contact?.lastName || "",
-                  phone: phoneValue || "",
+                  phone: contact?.phones?.[0] || "",
                 });
               }}
               style={[styles.memberActionButton, {
@@ -648,7 +527,7 @@ export const MemberView = ({ navigation }) => {
               )}
             </TouchableOpacity>
           </View>
-          <MemberForm />
+          <MemberForm member={currentMember} />
         </View>
       </DismissKeyboardScrollView>
       </KeyboardAvoidingView>

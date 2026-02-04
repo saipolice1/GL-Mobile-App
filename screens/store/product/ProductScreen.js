@@ -211,6 +211,8 @@ export function ProductScreen({ route, navigation }) {
       });
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('Back-in-stock HTTP error:', response.status, errorText);
         throw new Error('Failed to subscribe');
       }
 
@@ -233,6 +235,8 @@ export function ProductScreen({ route, navigation }) {
   };
 
   const inStock = productInStock(product, selectedVariant, requestedQuantity);
+  const isProductOutOfStock =
+    product.stock.inventoryStatus === products.InventoryStatus.OUT_OF_STOCK;
   const allProductOptionsSelected = (product.productOptions ?? []).every(
     (productOption) => productOption.name in selectedProductOptions,
   );
@@ -317,19 +321,15 @@ export function ProductScreen({ route, navigation }) {
           {/* Product Content */}
           <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
             <View style={styles.flexJustifyStart}>
-              {!allProductOptionsSelected ? (
-                <RNText style={{ color: "#B22D1D" }}>
-                  Please select all product options
-                </RNText>
-              ) : !inStock ? (
+              {isProductOutOfStock ? (
                 <View>
                   <RNText style={{ color: "#B22D1D", marginBottom: 12 }}>Out of Stock</RNText>
                   <TouchableOpacity
                     onPress={handleBackInStockSubscribe}
                     disabled={backInStockSubscribed || subscribing}
                     style={{
-                      backgroundColor: backInStockSubscribed 
-                        ? '#E8F5E9' 
+                      backgroundColor: backInStockSubscribed
+                        ? '#E8F5E9'
                         : '#FFF8E1',
                       borderColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
                       borderWidth: 2,
@@ -352,19 +352,73 @@ export function ProductScreen({ route, navigation }) {
                       <ActivityIndicator color="#E65100" size="small" />
                     ) : (
                       <>
-                        <Ionicons 
-                          name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"} 
-                          size={20} 
-                          color={backInStockSubscribed ? '#2E7D32' : '#E65100'} 
+                        <Ionicons
+                          name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"}
+                          size={20}
+                          color={backInStockSubscribed ? '#2E7D32' : '#E65100'}
                         />
-                        <RNText style={{ 
-                          color: backInStockSubscribed ? '#2E7D32' : '#E65100', 
-                          fontSize: 15, 
+                        <RNText style={{
+                          color: backInStockSubscribed ? '#2E7D32' : '#E65100',
+                          fontSize: 15,
                           fontWeight: '700',
                           letterSpacing: 0.3,
                         }}>
-                          {backInStockSubscribed 
-                            ? "You'll be notified" 
+                          {backInStockSubscribed
+                            ? "You'll be notified"
+                            : "Notify me when back in stock"}
+                        </RNText>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : !allProductOptionsSelected ? (
+                <RNText style={{ color: "#B22D1D" }}>
+                  Please select all product options
+                </RNText>
+              ) : !inStock ? (
+                <View>
+                  <RNText style={{ color: "#B22D1D", marginBottom: 12 }}>Out of Stock</RNText>
+                  <TouchableOpacity
+                    onPress={handleBackInStockSubscribe}
+                    disabled={backInStockSubscribed || subscribing}
+                    style={{
+                      backgroundColor: backInStockSubscribed
+                        ? '#E8F5E9'
+                        : '#FFF8E1',
+                      borderColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
+                      borderWidth: 2,
+                      borderRadius: 8,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                      shadowColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    {subscribing ? (
+                      <ActivityIndicator color="#E65100" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"}
+                          size={20}
+                          color={backInStockSubscribed ? '#2E7D32' : '#E65100'}
+                        />
+                        <RNText style={{
+                          color: backInStockSubscribed ? '#2E7D32' : '#E65100',
+                          fontSize: 15,
+                          fontWeight: '700',
+                          letterSpacing: 0.3,
+                        }}>
+                          {backInStockSubscribed
+                            ? "You'll be notified"
                             : "Notify me when back in stock"}
                         </RNText>
                       </>

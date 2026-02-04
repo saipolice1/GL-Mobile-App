@@ -18,8 +18,8 @@ import { wixCient } from '../../authentication/wixClient';
 import { theme } from '../../styles/theme';
 import { addToRecentlyViewed, getRecentlyViewed } from '../../utils/recentlyViewed';
 import { isFavorite, toggleFavorite, subscribeFavorites } from '../../services/favorites';
-import { useNotifications } from '../../context/NotificationContext';
 import { useWixSession } from '../../authentication/session';
+import { useNotifications } from '../../context/NotificationContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const MODAL_HEIGHT = screenHeight * 0.85;
@@ -48,10 +48,9 @@ export const EmbeddedProductModal = ({
   // Back in stock notification state
   const [backInStockSubscribed, setBackInStockSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
-  
   const queryClient = useQueryClient();
-  const { expoPushToken, permissionGranted } = useNotifications();
   const { isLoggedIn } = useWixSession();
+  const { expoPushToken } = useNotifications();
 
   // Update currentProduct when initialProduct changes
   useEffect(() => {
@@ -81,6 +80,7 @@ export const EmbeddedProductModal = ({
     setQuantity(1);
     setSelectedOptions({});
     setAddedToCart(false);
+    setBackInStockSubscribed(false);
     
     if (visible && currentProduct) {
       isFavorite(currentProduct._id).then(setIsProductFavorite);
@@ -118,90 +118,7 @@ export const EmbeddedProductModal = ({
     setQuantity(1);
     setSelectedOptions({});
     setAddedToCart(false);
-    setBackInStockSubscribed(false);
   }, []);
-
-  // Handle back in stock subscription
-  const handleBackInStockSubscribe = async () => {
-    try {
-      // Check if user is logged in
-      if (!isLoggedIn) {
-        Alert.alert(
-          "Sign In Required",
-          "Please sign in to receive back-in-stock notifications.",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Sign In", onPress: onClose },
-          ]
-        );
-        return;
-      }
-
-      // Check if push notifications are enabled (skip in development/Expo Go)
-      const isDevelopment = !expoPushToken && __DEV__;
-      if (!isDevelopment && !expoPushToken) {
-        Alert.alert(
-          "Notifications Disabled",
-          "Please enable notifications in your device settings to receive back-in-stock alerts.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      setSubscribing(true);
-
-      // Get member info
-      const { member } = await wixCient.members.getCurrentMember();
-      const memberId = member?._id;
-
-      if (!memberId) {
-        throw new Error("Could not get member ID");
-      }
-
-      // Get selected variant ID if applicable
-      const selectedVariant = currentProduct?.variants?.find(
-        (variant) =>
-          Object.entries(selectedOptions).length > 0 &&
-          Object.entries(selectedOptions).every(
-            ([key, value]) => variant.choices[key] === value,
-          ),
-      );
-      const variantId = selectedVariant?._id || null;
-
-      // Call Wix Velo HTTP function to register subscription
-      const response = await fetch('https://www.graftonliquor.co.nz/_functions/backInStockSubscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: currentProduct._id,
-          productName: currentProduct.name,
-          variantId,
-          memberId,
-          pushToken: expoPushToken,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to subscribe');
-      }
-
-      setBackInStockSubscribed(true);
-      Alert.alert(
-        "Subscribed!",
-        "We'll notify you when this item is back in stock.",
-        [{ text: "OK" }]
-      );
-    } catch (error) {
-      console.error('Back-in-stock subscribe failed:', error);
-      Alert.alert(
-        "Subscription Failed",
-        "Unable to subscribe for notifications. Please try again.",
-        [{ text: "OK" }]
-      );
-    } finally {
-      setSubscribing(false);
-    }
-  };
 
   const productCollectionId = currentProduct?.collectionIds?.[0] || collectionId;
 
@@ -288,6 +205,73 @@ export const EmbeddedProductModal = ({
       console.log('Add to cart error:', error);
     },
   });
+
+  const handleBackInStockSubscribe = async () => {
+    try {
+      if (!isLoggedIn) {
+        Alert.alert(
+          "Sign In Required",
+          "Please sign in to receive back-in-stock notifications.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      const isDevelopment = !expoPushToken && __DEV__;
+      if (!isDevelopment && !expoPushToken) {
+        Alert.alert(
+          "Notifications Disabled",
+          "Please enable notifications to receive back-in-stock alerts.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      setSubscribing(true);
+
+      const { member } = await wixCient.members.getCurrentMember();
+      const memberId = member?._id;
+
+      if (!memberId) {
+        throw new Error("Could not get member ID");
+      }
+
+      // Call Wix Velo HTTP function to register subscription
+      const response = await fetch('https://www.graftonliquor.co.nz/_functions/backInStockSubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: currentProduct._id,
+          productName: currentProduct.name,
+          variantId: null,
+          memberId,
+          pushToken: expoPushToken,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('Back-in-stock HTTP error:', response.status, errorText);
+        throw new Error('Failed to subscribe');
+      }
+
+      setBackInStockSubscribed(true);
+      Alert.alert(
+        "Subscribed!",
+        "We'll notify you when this item is back in stock.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Back-in-stock subscribe failed:', error);
+      Alert.alert(
+        "Subscription Failed",
+        "Unable to subscribe for notifications. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   const handleQuantityChange = (delta) => {
     setQuantity(prev => Math.max(1, prev + delta));
@@ -523,29 +507,34 @@ export const EmbeddedProductModal = ({
               onPress={handleBackInStockSubscribe}
               disabled={backInStockSubscribed || subscribing}
               style={[
-                styles.addToCartButton, 
-                styles.notifyButton,
-                backInStockSubscribed && styles.notifyButtonSubscribed
+                styles.addToCartButton,
+                {
+                  backgroundColor: backInStockSubscribed ? '#E8F5E9' : '#FFF8E1',
+                  borderColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
+                  borderWidth: 2,
+                }
               ]}
+              activeOpacity={0.8}
             >
               {subscribing ? (
-                <ActivityIndicator color={theme.colors.accent} />
+                <ActivityIndicator color="#E65100" size="small" />
               ) : (
-                <>
-                  <Ionicons 
-                    name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"} 
-                    size={22} 
-                    color={backInStockSubscribed ? theme.colors.success : theme.colors.accent} 
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <Ionicons
+                    name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"}
+                    size={22}
+                    color={backInStockSubscribed ? '#2E7D32' : '#E65100'}
                   />
-                  <Text style={[
-                    styles.notifyButtonText,
-                    backInStockSubscribed && styles.notifyButtonTextSubscribed
-                  ]}>
-                    {backInStockSubscribed 
-                      ? "You'll be notified" 
+                  <Text style={{
+                    color: backInStockSubscribed ? '#2E7D32' : '#E65100',
+                    fontSize: 16,
+                    fontWeight: '700',
+                  }}>
+                    {backInStockSubscribed
+                      ? "You'll be notified"
                       : "Notify me when back in stock"}
                   </Text>
-                </>
+                </View>
               )}
             </TouchableOpacity>
           ) : addedToCart ? (
@@ -1020,34 +1009,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textLight,
     fontSize: 16,
     fontWeight: '600',
-  },
-  notifyButton: {
-    backgroundColor: '#FFF8E1',
-    borderWidth: 2,
-    borderColor: '#FFA000',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    shadowColor: '#FFA000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  notifyButtonSubscribed: {
-    backgroundColor: '#E8F5E9',
-    borderColor: '#4CAF50',
-    shadowColor: '#4CAF50',
-  },
-  notifyButtonText: {
-    color: '#E65100',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  notifyButtonTextSubscribed: {
-    color: '#2E7D32',
   },
   addedToCartButton: {
     backgroundColor: '#4CAF50',

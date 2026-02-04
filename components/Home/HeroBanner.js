@@ -163,8 +163,6 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
           // Use improved matching for categories with displayCollections
           const { collectionIds } = findMatchingCollection(allCollections, selectedCategory);
           
-          console.log(`HeroBanner: Looking for "${selectedCategory}", found ${collectionIds.length} collection(s)`);
-          
           if (collectionIds.length > 0) {
             const response = await wixCient.products
               .queryProducts()
@@ -174,7 +172,6 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
             if (response?.items?.length > 0) {
               const inStockItems = response.items.filter(isProductInStock);
               const shuffled = [...inStockItems].sort(() => Math.random() - 0.5);
-              console.log(`HeroBanner: Found ${inStockItems.length} in-stock products for "${selectedCategory}"`);
               return shuffled.slice(0, 6);
             }
           }

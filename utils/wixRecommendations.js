@@ -105,11 +105,9 @@ export const getBestSellersAlgorithmId = async () => {
 
   if (bestSellersAlg) {
     cachedBestSellersAlgorithmId = bestSellersAlg._id;
-    console.log('Found Best Sellers algorithm:', bestSellersAlg.name, bestSellersAlg._id);
     return bestSellersAlg._id;
   }
 
-  console.log('No Best Sellers algorithm found');
   return null;
 };
 
@@ -226,14 +224,11 @@ export const getProductsByIds = async (productIds) => {
  * @param {boolean} forceRefresh - Force refresh cache (default: false)
  */
 export const getBestSellers = async (limit = 21, forceRefresh = false) => {
-  console.log('=== FETCHING BEST SELLERS ===');
-  
   // Check cache first (unless force refresh)
   if (!forceRefresh && cachedBestSellers && bestSellersCacheTime) {
     const now = Date.now();
     const cacheAge = now - bestSellersCacheTime;
     if (cacheAge < BEST_SELLERS_CACHE_DURATION) {
-      console.log(`Using cached best sellers (age: ${Math.round(cacheAge / 1000)}s)`);
       return cachedBestSellers.slice(0, limit);
     }
   }
@@ -243,7 +238,6 @@ export const getBestSellers = async (limit = 21, forceRefresh = false) => {
     const algorithmId = await getBestSellersAlgorithmId();
     
     if (!algorithmId) {
-      console.log('No best sellers algorithm found, falling back to default query');
       const fallback = await getFallbackBestSellers(limit);
       // Cache fallback results too
       cachedBestSellers = fallback;
@@ -258,7 +252,6 @@ export const getBestSellers = async (limit = 21, forceRefresh = false) => {
     });
 
     if (productIds.length === 0) {
-      console.log('No recommendations returned, using fallback');
       const fallback = await getFallbackBestSellers(limit);
       cachedBestSellers = fallback;
       bestSellersCacheTime = Date.now();
@@ -268,15 +261,12 @@ export const getBestSellers = async (limit = 21, forceRefresh = false) => {
     // Step 3: Get full product data (take up to limit)
     const products = await getProductsByIds(productIds.slice(0, limit));
     
-    console.log(`Best Sellers: Returned ${products.length} products`);
-    
     // Cache the results
     cachedBestSellers = products;
     bestSellersCacheTime = Date.now();
     
     return products;
   } catch (error) {
-    console.log('Error in getBestSellers:', error);
     const fallback = await getFallbackBestSellers(limit);
     cachedBestSellers = fallback;
     bestSellersCacheTime = Date.now();
@@ -289,8 +279,6 @@ export const getBestSellers = async (limit = 21, forceRefresh = false) => {
  * (when Recommendations API is not available)
  */
 export const getFallbackBestSellers = async (limit = 21) => {
-  console.log('Using fallback best sellers query...');
-  
   try {
     // Fetch products sorted by last updated (most recent first)
     const response = await wixCient.products
@@ -304,10 +292,8 @@ export const getFallbackBestSellers = async (limit = 21) => {
     // Filter to in-stock items only (keep original order, no shuffle)
     const inStock = items.filter(p => p.stock?.inStock !== false);
     
-    console.log(`Fallback: Returned ${Math.min(inStock.length, limit)} products`);
     return inStock.slice(0, limit);
   } catch (error) {
-    console.log('Error in fallback best sellers:', error);
     return [];
   }
 };
@@ -319,7 +305,6 @@ export const getFallbackBestSellers = async (limit = 21) => {
 export const clearBestSellersCache = () => {
   cachedBestSellers = null;
   bestSellersCacheTime = null;
-  console.log('Best sellers cache cleared');
 };
 
 /**

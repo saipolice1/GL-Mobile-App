@@ -11,6 +11,7 @@ export const CATEGORIES_DATA = [
     slug: 'trending', 
     icon: 'flame',
     iconType: 'ionicons',
+    customImage: require('../../assets/category-icons/trending.png'),
     color: '#FF6B35',
   },
   { 

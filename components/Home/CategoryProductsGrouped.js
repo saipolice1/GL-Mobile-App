@@ -217,19 +217,8 @@ export const CategoryProductsGrouped = ({
   
   // Only render if this category has displayCollections defined
   if (!categoryData?.displayCollections || categoryData.displayCollections.length === 0) {
-    console.log('CategoryProductsGrouped: No displayCollections for', categorySlug);
     return null;
   }
-
-  console.log('CategoryProductsGrouped: Rendering sliders for', categoryData.name);
-  console.log('CategoryProductsGrouped: Available collections count:', collections.length);
-  console.log('CategoryProductsGrouped: Display collections:', categoryData.displayCollections.map(c => c.name));
-  
-  // Log which collections we can find
-  categoryData.displayCollections.forEach(dc => {
-    const found = collections.find(c => c.slug === dc.slug);
-    console.log(`  - "${dc.name}" (${dc.slug}): ${found ? `FOUND (ID: ${found._id})` : 'NOT FOUND'}`);
-  });
 
   return (
     <Animated.ScrollView
