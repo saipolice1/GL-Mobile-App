@@ -151,6 +151,144 @@ const MemberForm = () => {
   );
 };
 
+const BackInStockSubscriptions = () => {
+  const { session } = useWixSession();
+  const queryClient = useQueryClient();
+
+  const subscriptionsQuery = useQuery({
+    queryKey: ["back-in-stock-subscriptions", session],
+    queryFn: async () => {
+      const res = await wixCient.fetchWithAuth(
+        `https://www.wixapis.com/wix-data/v2/items/query`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dataCollectionId: "BackInStockSubscriptions",
+            query: {
+              filter: {
+                notified: false,
+              },
+            },
+          }),
+        },
+      );
+      return res.json();
+    },
+  });
+
+  const removeSubscriptionMutation = useMutation({
+    mutationFn: async (itemId) => {
+      const res = await wixCient.fetchWithAuth(
+        `https://www.wixapis.com/wix-data/v2/items/${itemId}?dataCollectionId=BackInStockSubscriptions`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["back-in-stock-subscriptions"]);
+    },
+  });
+
+  if (subscriptionsQuery.isLoading) {
+    return (
+      <MemberAccordion title="Back in Stock Notifications" defaultExpanded={false}>
+        <ActivityIndicator size="small" color={theme.colors.accent} />
+      </MemberAccordion>
+    );
+  }
+
+  if (subscriptionsQuery.isError) {
+    return (
+      <MemberAccordion title="Back in Stock Notifications" defaultExpanded={false}>
+        <RNText style={{ color: theme.colors.error }}>Failed to load subscriptions</RNText>
+      </MemberAccordion>
+    );
+  }
+
+  const subscriptions = subscriptionsQuery.data?.dataItems || [];
+
+  return (
+    <MemberAccordion title="Back in Stock Notifications" defaultExpanded={false}>
+      {subscriptions.length > 0 ? (
+        subscriptions.map((item) => (
+          <View key={item._id} style={notificationStyles.itemContainer}>
+            <View style={notificationStyles.itemInfo}>
+              <RNText style={notificationStyles.productName} numberOfLines={2}>
+                {item.data?.productName || "Unknown Product"}
+              </RNText>
+              <RNText style={notificationStyles.subscriptionDate}>
+                Subscribed: {item.data?.createdDate ? format(new Date(item.data.createdDate), "MMM dd, yyyy") : "N/A"}
+              </RNText>
+            </View>
+            <TouchableOpacity
+              onPress={() => removeSubscriptionMutation.mutate(item._id)}
+              disabled={removeSubscriptionMutation.isPending}
+              style={notificationStyles.removeButton}
+            >
+              {removeSubscriptionMutation.isPending ? (
+                <ActivityIndicator size="small" color={theme.colors.error} />
+              ) : (
+                <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+              )}
+            </TouchableOpacity>
+          </View>
+        ))
+      ) : (
+        <RNText style={{ color: theme.colors.textMuted, textAlign: 'center', paddingVertical: 20 }}>
+          You haven't subscribed to any back in stock notifications yet.
+        </RNText>
+      )}
+      <RNText style={notificationStyles.helpText}>
+        When an out-of-stock product you've subscribed to becomes available, you'll receive a push notification.
+      </RNText>
+    </MemberAccordion>
+  );
+};
+
+const notificationStyles = RNStyleSheet.create({
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surfaceVariant,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  itemInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  subscriptionDate: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+  },
+  removeButton: {
+    padding: 8,
+  },
+  helpText: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+});
+
 const Orders = () => {
   const { session } = useWixSession();
 
@@ -441,6 +579,9 @@ export const MemberView = ({ navigation }) => {
         </View>
         <View style={{ marginTop: 20, width: "100%" }}>
           <Orders />
+        </View>
+        <View style={{ marginTop: 0, width: "100%" }}>
+          <BackInStockSubscriptions />
         </View>
         <View style={styles.memberDetails}>
           <Text style={styles.memberDetailsTitle}>My Account</Text>
