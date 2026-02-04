@@ -124,8 +124,9 @@ export const ProductModal = ({
         return;
       }
 
-      // Check if push notifications are enabled
-      if (!expoPushToken || !permissionGranted) {
+      // Check if push notifications are enabled (skip in development/Expo Go)
+      const isDevelopment = !expoPushToken && __DEV__;
+      if (!isDevelopment && !expoPushToken) {
         Alert.alert(
           "Notifications Disabled",
           "Please enable notifications in your device settings to receive back-in-stock alerts.",

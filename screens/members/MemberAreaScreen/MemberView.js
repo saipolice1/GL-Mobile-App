@@ -393,12 +393,14 @@ const Orders = () => {
 
 export const MemberView = ({ navigation }) => {
   const queryClient = useQueryClient();
-  const { newVisitorSession } = useWixSession();
+  const { newVisitorSession, session } = useWixSession();
   const { firstName, lastName, phone, updateContact } = useMemberHandler();
   const [visibleMenu, setVisibleMenu] = useState(false);
   const getCurrentMemberRes = useQuery({
-    queryKey: ["currentMember"],
+    queryKey: ["currentMember", session?.refreshToken],
     queryFn: () => wixCient.members.getCurrentMember({ fieldSet: "FULL" }),
+    enabled: !!session?.refreshToken, // Only fetch when logged in (has refresh token)
+    staleTime: 0, // Always refetch
   });
 
   // Use the member data from the query
@@ -407,14 +409,19 @@ export const MemberView = ({ navigation }) => {
   // Update contact info when member data loads
   useEffect(() => {
     if (currentMember) {
+      console.log('MemberView: currentMember loaded:', JSON.stringify(currentMember, null, 2));
+      
       // Wix may return 'contact' or 'contactInfo'
       const contact = currentMember?.contactInfo || currentMember?.contact;
+      console.log('MemberView: contact data:', JSON.stringify(contact, null, 2));
       
       // Handle phones as either array of strings or array of objects
       const phoneValue = Array.isArray(contact?.phones) 
         ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
         : "";
 
+      console.log('MemberView: Setting contact - firstName:', contact?.firstName, 'lastName:', contact?.lastName, 'phone:', phoneValue);
+      
       updateContact({
         firstName: contact?.firstName || "",
         lastName: contact?.lastName || "",
