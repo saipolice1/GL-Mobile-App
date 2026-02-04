@@ -328,34 +328,39 @@ export function ProductScreen({ route, navigation }) {
                     disabled={backInStockSubscribed || subscribing}
                     style={{
                       backgroundColor: backInStockSubscribed 
-                        ? appTheme.colors.surfaceVariant 
-                        : appTheme.colors.surface,
-                      borderColor: appTheme.colors.accent,
-                      borderWidth: 1.5,
+                        ? '#E8F5E9' 
+                        : '#FFF8E1',
+                      borderColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
+                      borderWidth: 2,
                       borderRadius: 8,
                       paddingVertical: 12,
                       paddingHorizontal: 16,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 8,
-                      opacity: backInStockSubscribed ? 0.7 : 1,
+                      gap: 10,
+                      shadowColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 3,
                     }}
                     activeOpacity={0.8}
                   >
                     {subscribing ? (
-                      <ActivityIndicator color={appTheme.colors.accent} size="small" />
+                      <ActivityIndicator color="#E65100" size="small" />
                     ) : (
                       <>
                         <Ionicons 
                           name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"} 
                           size={20} 
-                          color={appTheme.colors.accent} 
+                          color={backInStockSubscribed ? '#2E7D32' : '#E65100'} 
                         />
                         <RNText style={{ 
-                          color: appTheme.colors.accent, 
+                          color: backInStockSubscribed ? '#2E7D32' : '#E65100', 
                           fontSize: 15, 
-                          fontWeight: '600' 
+                          fontWeight: '700',
+                          letterSpacing: 0.3,
                         }}>
                           {backInStockSubscribed 
                             ? "You'll be notified" 

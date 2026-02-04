@@ -400,16 +400,15 @@ export const MemberView = ({ navigation }) => {
     queryKey: ["currentMember"],
     queryFn: () => wixCient.members.getCurrentMember({ fieldSet: "FULL" }),
   });
-  const [currentMember, setCurrentMember] = useState(null);
 
+  // Use the member data from the query
+  const currentMember = getCurrentMemberRes.data?.member;
+
+  // Update contact info when member data loads
   useEffect(() => {
-    const fetchCurrentMember = async () => {
-      const { member } = await wixCient.members.getCurrentMember({
-        fieldSet: "FULL",
-      });
-
+    if (currentMember) {
       // Wix may return 'contact' or 'contactInfo'
-      const contact = member?.contactInfo || member?.contact;
+      const contact = currentMember?.contactInfo || currentMember?.contact;
       
       // Handle phones as either array of strings or array of objects
       const phoneValue = Array.isArray(contact?.phones) 
@@ -421,11 +420,8 @@ export const MemberView = ({ navigation }) => {
         lastName: contact?.lastName || "",
         phone: phoneValue || "",
       });
-
-      setCurrentMember(member);
-    };
-    fetchCurrentMember();
-  }, []);
+    }
+  }, [currentMember]);
 
   const updateMemberMutation = useMutation({
     mutationFn: async () => {
@@ -455,9 +451,8 @@ export const MemberView = ({ navigation }) => {
       // Wix returns 'contact' not 'contactInfo' in the response
       const contact = updatedMember?.contactInfo || updatedMember?.contact;
       
-      // updatedMember is the member object
+      // updatedMember is the member object - update the query cache
       queryClient.setQueryData(["currentMember"], { member: updatedMember });
-      setCurrentMember(updatedMember);
 
       // Handle phones as either array of strings or array of objects
       const phoneValue = Array.isArray(contact?.phones) 

@@ -118,6 +118,11 @@ export function WixSessionProvider(props) {
     console.warn("Wix session failed to initialize, proceeding without authentication");
   }
 
+  // Check if user is logged in (has refresh token = member session)
+  const isLoggedIn = React.useMemo(() => {
+    return !!(session?.accessToken && session?.refreshToken);
+  }, [session]);
+
   return (
     <WixSessionContext.Provider
       value={{
@@ -126,6 +131,7 @@ export function WixSessionProvider(props) {
         sessionLoading,
         setSessionLoading,
         newVisitorSession,
+        isLoggedIn,
       }}
     >
       {props.children}
