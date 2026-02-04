@@ -1,53 +1,44 @@
 import React from "react";
-import { View, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { WebView } from "react-native-webview";
-import { SimpleHeader } from "../../../components/Header/SimpleHeader";
-import { theme } from "../../../styles/theme";
 import { HelpChatScreen } from "../../help/HelpChatScreen";
-import { WebViewScreen, WIX_PAGES } from "../../webview/WebViewScreen";
+import { WebViewScreen } from "../../webview/WebViewScreen";
+import { SignInView } from "./SignInView";
+import { MemberView } from "./MemberView";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { wixCient } from "../../../authentication/wixClient";
+import { useWixSession } from "../../../authentication/session";
+import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIndicator";
 import Routes from "../../../routes/routes";
 
 const Stack = createNativeStackNavigator();
 
-// Main Account Screen - Just shows Wix Login/Account WebView
+// Main Account Screen - Shows SignIn or Member View based on login status
 const MemberAreaMain = ({ navigation }) => {
-  const [isLoading, setIsLoading] = React.useState(true);
+  const { session } = useWixSession();
+  const queryClient = useQueryClient();
+  
+  // Check if we have member tokens (not just visitor tokens)
+  const hasMemberTokens = !!(session?.refreshToken);
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
-      <SimpleHeader
-        title={"My Account"}
-        backIcon={false}
-        navigation={navigation}
-      />
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        {isLoading && (
-          <View style={{ 
-            position: 'absolute', 
-            top: 0, left: 0, right: 0, bottom: 0, 
-            justifyContent: 'center', 
-            alignItems: 'center',
-            backgroundColor: theme.colors.background,
-            zIndex: 1
-          }}>
-            <ActivityIndicator size="large" color={theme.colors.accent} />
-          </View>
-        )}
-        <WebView
-          source={{ uri: WIX_PAGES.ACCOUNT }}
-          style={{ flex: 1, backgroundColor: theme.colors.background }}
-          onLoadStart={() => setIsLoading(true)}
-          onLoadEnd={() => setIsLoading(false)}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={false}
-          sharedCookiesEnabled={true}
-          thirdPartyCookiesEnabled={true}
-        />
-      </View>
-    </SafeAreaView>
+  // If logged in, check if we can fetch member data
+  const getCurrentMemberRes = useQuery({
+    queryKey: ["currentMember", session?.accessToken],
+    queryFn: () => wixCient.members.getCurrentMember({ fieldSet: "FULL" }),
+    enabled: hasMemberTokens,
+    retry: false,
+  });
+
+  // Show loading while checking member status
+  if (hasMemberTokens && getCurrentMemberRes.isLoading) {
+    return <LoadingIndicator />;
+  }
+
+  // If logged in and has member data, show member view
+  // Otherwise show sign in view
+  return hasMemberTokens && getCurrentMemberRes.data?.member ? (
+    <MemberView navigation={navigation} />
+  ) : (
+    <SignInView navigation={navigation} />
   );
 };
 

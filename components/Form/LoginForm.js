@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { HelperText, TextInput } from "react-native-paper";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLoginHandler } from "../../authentication/LoginHandler";
 import { useWixSession } from "../../authentication/session";
+import { loginWithSystemBrowser } from "../../authentication/wixSystemLogin";
 import { DismissKeyboardSafeAreaView } from "../DismissKeyboardHOC/DismissKeyboardSafeAreaView";
 import Routes from "../../routes/routes";
 import { theme } from "../../styles/theme";
@@ -13,19 +15,54 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const { sessionLoading } = useWixSession();
+  const [systemLoginLoading, setSystemLoginLoading] = useState(false);
+  const { sessionLoading, setSession } = useWixSession();
   const { login } = useLoginHandler();
+  const queryClient = useQueryClient();
 
   const loginHandler = async () => {
     setError(false);
     try {
       await login(email, password);
+      // Invalidate queries to refresh with new auth
+      queryClient.invalidateQueries({ queryKey: ["currentMember"] });
       if (navigation) {
         navigation.navigate(Routes.Home);
       }
     } catch (e) {
       setErrorMessage(e.toString());
       setError(true);
+    }
+  };
+
+  const handleSystemLogin = async () => {
+    setError(false);
+    setSystemLoginLoading(true);
+    
+    try {
+      const result = await loginWithSystemBrowser();
+      
+      if (result.success && result.tokens) {
+        console.log("Login successful, updating session...");
+        // Update session with new tokens
+        await setSession(result.tokens);
+        
+        // Invalidate queries to refresh with new auth
+        queryClient.invalidateQueries({ queryKey: ["currentMember"] });
+        queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+        
+        console.log("Session updated, navigation should refresh");
+        // Don't navigate away - let the component re-render with logged in state
+      } else {
+        setErrorMessage(result.error || "Login failed");
+        setError(true);
+      }
+    } catch (e) {
+      console.error("System login error:", e);
+      setErrorMessage(e.toString());
+      setError(true);
+    } finally {
+      setSystemLoginLoading(false);
     }
   };
 
@@ -88,21 +125,24 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
         
         <TouchableOpacity
           style={styles.googleButton}
-          onPress={onWixLogin}
-          disabled={disabled || loading}
+          onPress={handleSystemLogin}
+          disabled={disabled || loading || systemLoginLoading || sessionLoading}
           activeOpacity={0.8}
         >
-          {loading ? (
+          {(loading || systemLoginLoading) ? (
             <ActivityIndicator color={theme.colors.text} />
           ) : (
             <View style={styles.googleButtonContent}>
               <View style={styles.googleIconContainer}>
-                <Text style={styles.googleG}>G</Text>
+                <Text style={styles.googleG}>GL</Text>
               </View>
-              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              <Text style={styles.googleButtonText}>Sign in with Grafton Liquor</Text>
             </View>
           )}
         </TouchableOpacity>
+        <Text style={styles.secureLoginText}>
+          You'll be redirected to our secure Grafton Liquor login (powered by Wix).
+        </Text>
       </View>
     </DismissKeyboardSafeAreaView>
   );
@@ -202,5 +242,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 16,
     fontWeight: "500",
+  },
+  secureLoginText: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 12,
+    paddingHorizontal: 20,
   },
 });

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import React, { useEffect, useState } from "react";
-import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet } from "react-native";
+import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   Avatar,
@@ -75,15 +75,30 @@ const memberAccordionStyles = RNStyleSheet.create({
   },
 });
 
-const FormInput = ({ labelValue, placeholderText, inputValue, ...rest }) => {
+const FormInput = ({ labelValue, placeholderText, inputValue, onChangeText, ...rest }) => {
+  const [localValue, setLocalValue] = React.useState(inputValue || "");
+  
+  React.useEffect(() => {
+    setLocalValue(inputValue || "");
+  }, [inputValue]);
+  
+  const handleChangeText = (text) => {
+    setLocalValue(text);
+    if (onChangeText) {
+      onChangeText(text);
+    }
+  };
+  
   return (
     <View style={styles.accountInputContainer}>
       <Text style={styles.accountInfoText}>{labelValue}:</Text>
       <TextInput
         style={styles.accountInput}
         placeholder={placeholderText}
+        placeholderTextColor={theme.colors.textMuted}
+        value={localValue}
+        onChangeText={handleChangeText}
         {...rest}
-        value={inputValue}
       />
     </View>
   );
@@ -238,105 +253,6 @@ const Orders = () => {
   );
 };
 
-// Help & Support Section
-const HelpSupport = ({ navigation }) => {
-  const supportOptions = [
-    {
-      icon: 'receipt-outline',
-      title: 'View Orders on Website',
-      subtitle: 'See full order history & tracking',
-      onPress: () => navigation?.navigate(Routes.WebView, {
-        url: WIX_PAGES.ORDER_HISTORY,
-        title: 'Order History'
-      }),
-    },
-    {
-      icon: 'help-circle-outline',
-      title: 'FAQ & Help Center',
-      subtitle: 'Find answers to common questions',
-      onPress: () => navigation?.navigate(Routes.HelpChat),
-    },
-    {
-      icon: 'chatbubble-ellipses-outline',
-      title: 'Chat with Us',
-      subtitle: 'Messages go directly to our inbox',
-      onPress: () => navigation?.navigate(Routes.WebView, {
-        url: WIX_PAGES.CHAT,
-        title: 'Chat with Us'
-      }),
-    },
-    {
-      icon: 'call-outline',
-      title: 'Contact Us',
-      subtitle: '+1 (555) 123-4567',
-      onPress: null,
-    },
-    {
-      icon: 'mail-outline',
-      title: 'Email Support',
-      subtitle: 'support@graftonliquor.com',
-      onPress: null,
-    },
-  ];
-
-  return (
-    <MemberAccordion title="Help & Support" defaultExpanded={false}>
-      {supportOptions.map((option, index) => (
-        <TouchableOpacity
-          key={option.title}
-          style={helpStyles.optionRow}
-          onPress={option.onPress}
-          disabled={!option.onPress}
-          activeOpacity={option.onPress ? 0.7 : 1}
-        >
-          <View style={helpStyles.optionIcon}>
-            <Ionicons name={option.icon} size={24} color={theme.colors.accent} />
-          </View>
-          <View style={helpStyles.optionContent}>
-            <RNText style={helpStyles.optionTitle}>{option.title}</RNText>
-            <RNText style={helpStyles.optionSubtitle}>{option.subtitle}</RNText>
-          </View>
-          {option.onPress && (
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
-          )}
-        </TouchableOpacity>
-      ))}
-    </MemberAccordion>
-  );
-};
-
-const helpStyles = RNStyleSheet.create({
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  optionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.surfaceVariant,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  optionSubtitle: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-  },
-});
-
 export const MemberView = ({ navigation }) => {
   const queryClient = useQueryClient();
   const { newVisitorSession } = useWixSession();
@@ -353,11 +269,21 @@ export const MemberView = ({ navigation }) => {
       const { member } = await wixCient.members.getCurrentMember({
         fieldSet: "FULL",
       });
+
+      // Wix may return 'contact' or 'contactInfo'
+      const contact = member?.contactInfo || member?.contact;
+      
+      // Handle phones as either array of strings or array of objects
+      const phoneValue = Array.isArray(contact?.phones) 
+        ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
+        : "";
+
       updateContact({
-        firstName: member?.contact?.firstName,
-        lastName: member?.contact?.lastName,
-        phone: member?.contact?.phones[0],
+        firstName: contact?.firstName || "",
+        lastName: contact?.lastName || "",
+        phone: phoneValue || "",
       });
+
       setCurrentMember(member);
     };
     fetchCurrentMember();
@@ -365,32 +291,61 @@ export const MemberView = ({ navigation }) => {
 
   const updateMemberMutation = useMutation({
     mutationFn: async () => {
-      if (!currentMember) return;
-      const contact = currentMember?.contact;
-      const newPhones = [...(contact?.phones || [])];
-      newPhones[0] = phone;
-      const updatedContact = {
-        ...(contact || {}),
-        firstName,
-        lastName,
-        phones: newPhones,
-      };
+      console.log("Starting member update...");
+      console.log("Current member:", currentMember?._id);
+      console.log("Form values:", { firstName, lastName, phone });
+      
+      if (!currentMember) {
+        console.log("No current member, aborting");
+        return;
+      }
+
+      // Wix expects 'contact' with phones as array of strings
+      const existingContact = currentMember?.contact || currentMember?.contactInfo || {};
+      
       const updatedMember = {
-        contact: updatedContact,
-      };
-      return await wixCient.members.updateMember(
-        currentMember?._id,
-        updatedMember,
-      );
-    },
-    onSuccess: async (response) => {
-      const member = {
-        member: {
-          ...response,
+        contact: {
+          firstName,
+          lastName,
+          phones: phone ? [phone] : [],
         },
       };
-      queryClient.setQueryData(["currentMember"], member);
-      setCurrentMember(response);
+
+      console.log("Sending update to Wix:", JSON.stringify(updatedMember, null, 2));
+
+      const result = await wixCient.members.updateMember(
+        currentMember._id,
+        updatedMember,
+      );
+      
+      console.log("Update result:", JSON.stringify(result, null, 2));
+      return result;
+    },
+    onSuccess: (updatedMember) => {
+      console.log("Update successful!");
+      
+      // Wix returns 'contact' not 'contactInfo' in the response
+      const contact = updatedMember?.contactInfo || updatedMember?.contact;
+      console.log("Updated member contact:", contact);
+      
+      // updatedMember is the member object
+      queryClient.setQueryData(["currentMember"], { member: updatedMember });
+      setCurrentMember(updatedMember);
+
+      // Handle phones as either array of strings or array of objects
+      const phoneValue = Array.isArray(contact?.phones) 
+        ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
+        : "";
+
+      updateContact({
+        firstName: contact?.firstName || "",
+        lastName: contact?.lastName || "",
+        phone: phoneValue || "",
+      });
+    },
+    onError: (error) => {
+      console.error("Update failed:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
     },
   });
 
@@ -406,20 +361,28 @@ export const MemberView = ({ navigation }) => {
     return <LoadingIndicator loadingMessage={"Updating your info..."} />;
   }
 
-  const { profile, contact } = currentMember || {};
+  const { profile } = currentMember || {};
+  // Wix may return 'contact' or 'contactInfo'
+  const contact = currentMember?.contactInfo || currentMember?.contact;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <DismissKeyboardScrollView
-        style={styles.contentSection}
-        keyboardShouldPersistTaps="never"
-        alwaysBounceVertical={false}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-        bouncesZoom={false}
-        automaticallyAdjustKeyboardInsets={true}
-        scrollEventThrottle={16}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        <DismissKeyboardScrollView
+          style={styles.contentSection}
+          keyboardShouldPersistTaps="handled"
+          alwaysBounceVertical={false}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          bouncesZoom={false}
+          automaticallyAdjustKeyboardInsets={true}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        >
         <View style={styles.memberHeader} />
         <View style={styles.memberSection}>
           <View
@@ -443,8 +406,8 @@ export const MemberView = ({ navigation }) => {
                 size={100}
                 label={
                   contact?.firstName && contact?.lastName
-                    ? `${contact?.firstName[0]}${contact?.lastName[0]}`
-                    : profile?.nickname[0]
+                    ? `${contact.firstName[0]}${contact.lastName[0]}`
+                    : profile?.nickname?.[0] || '?'
                 }
               />
             )}
@@ -491,9 +454,6 @@ export const MemberView = ({ navigation }) => {
         <View style={{ marginTop: 20, width: "100%" }}>
           <Orders />
         </View>
-        <View style={{ marginTop: 8, width: "100%" }}>
-          <HelpSupport navigation={navigation} />
-        </View>
         <View style={styles.memberDetails}>
           <Text style={styles.memberDetailsTitle}>My Account</Text>
           <Text style={styles.memberDetailsSubTitle}>
@@ -510,10 +470,14 @@ export const MemberView = ({ navigation }) => {
           >
             <TouchableOpacity
               onPress={() => {
+                // Handle phones as either array of strings or array of objects
+                const phoneValue = Array.isArray(contact?.phones) 
+                  ? (typeof contact.phones[0] === 'string' ? contact.phones[0] : contact.phones[0]?.phone)
+                  : "";
                 updateContact({
-                  firstName: contact?.firstName,
-                  lastName: contact?.lastName,
-                  phone: contact?.phones[0],
+                  firstName: contact?.firstName || "",
+                  lastName: contact?.lastName || "",
+                  phone: phoneValue || "",
                 });
               }}
               style={[styles.memberActionButton, {
@@ -556,6 +520,7 @@ export const MemberView = ({ navigation }) => {
           <MemberForm />
         </View>
       </DismissKeyboardScrollView>
+      </KeyboardAvoidingView>
     </GestureHandlerRootView>
   );
 };

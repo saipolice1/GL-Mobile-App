@@ -10,6 +10,7 @@ import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import "react-native-url-polyfill/auto";
 import { LoginHandler } from "./authentication/LoginHandler";
 import { WixSessionProvider } from "./authentication/session";
+import { initializeAuthSession } from "./authentication/wixSystemLogin";
 import { LoadingIndicator } from "./components/LoadingIndicator/LoadingIndicator";
 import { TabBar } from "./components/Tabs/Tabs";
 import { AgeVerification } from "./components/AgeVerification/AgeVerification";
@@ -17,6 +18,9 @@ import { tabs } from "./data/tabs/data";
 import { theme as appTheme } from "./styles/theme";
 import { NotificationProvider } from "./context/NotificationContext";
 import Routes from "./routes/routes";
+
+// Initialize WebBrowser auth session on app startup
+initializeAuthSession();
 
 const Tab = createBottomTabNavigator();
 const queryClient = new QueryClient();

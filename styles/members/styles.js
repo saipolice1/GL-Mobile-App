@@ -47,6 +47,7 @@ export const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingHorizontal: 20,
     marginTop: 30,
+    paddingTop: 50,
   },
   memberImage: {
     width: 100,

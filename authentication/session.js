@@ -57,40 +57,52 @@ export function WixSessionProvider(props) {
   React.useEffect(() => {
     setSessionLoading(true);
     
-    // Add a timeout to prevent infinite loading if Wix auth fails
-    const timeoutId = setTimeout(() => {
-      if (!session) {
-        console.warn("Wix session initialization timeout - proceeding without authentication");
-        setSessionLoading(false);
-      }
-    }, 5000); // 5 second timeout
-
-    SecureStore.getItemAsync("wixSession")
-      .then((wixSession) => {
-        clearTimeout(timeoutId);
-        if (!wixSession) {
-          return newVisitorSession();
-        } else {
-          const { tokens, clientId } = JSON.parse(wixSession);
-          if (clientId !== props.clientId) {
-            return newVisitorSession();
+    const restoreSession = async () => {
+      try {
+        const sessionStr = await SecureStore.getItemAsync("wixSession");
+        
+        if (sessionStr) {
+          const storedSession = JSON.parse(sessionStr);
+          
+          // Check if client ID matches
+          if (storedSession.clientId === props.clientId && storedSession.tokens) {
+            console.log("Restoring saved session...");
+            
+            // Check if it's a member token (has refreshToken) or visitor token
+            if (storedSession.tokens.refreshToken) {
+              console.log("Found member session, restoring...");
+              wixCient.auth.setTokens(storedSession.tokens);
+              setSessionState(storedSession.tokens);
+              setSessionLoading(false);
+              return;
+            } else {
+              console.log("Found visitor session, creating fresh one...");
+            }
           } else {
-            return setSession(tokens);
+            console.log("Client ID mismatch, clearing old session");
+            await SecureStore.deleteItemAsync("wixSession");
           }
         }
-      })
-      .catch((error) => {
-        clearTimeout(timeoutId);
-        console.error("WixSessionProvider error:", error);
-        // Fallback: try to create a visitor session
-        newVisitorSession().catch((err) => {
-          console.error("Failed to create visitor session:", err);
+        
+        // No valid member session, create visitor session
+        console.log("Creating new visitor session...");
+        await newVisitorSession();
+      } catch (error) {
+        console.error("Failed to restore session:", error);
+        // Try to create visitor session as fallback
+        try {
+          await newVisitorSession();
+        } catch (visitorError) {
+          console.error("Failed to create visitor session:", visitorError);
+          setSessionError(visitorError);
           setSessionLoading(false);
-        });
-      });
+        }
+      }
+    };
+    
+    restoreSession();
       
-    return () => clearTimeout(timeoutId);
-  }, [props.clientId, newVisitorSession, setSession]);
+  }, [newVisitorSession, props.clientId]);
 
   if (!session && sessionLoading) {
     return (

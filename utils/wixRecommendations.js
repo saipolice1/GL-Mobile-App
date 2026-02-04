@@ -371,6 +371,5 @@ export default {
   getProductsByIds,
   getBestSellers,
   getFallbackBestSellers,
-  clearBestSellersCache,
   getRelatedProducts,
 };
