@@ -291,12 +291,7 @@ export const MemberView = ({ navigation }) => {
 
   const updateMemberMutation = useMutation({
     mutationFn: async () => {
-      console.log("Starting member update...");
-      console.log("Current member:", currentMember?._id);
-      console.log("Form values:", { firstName, lastName, phone });
-      
       if (!currentMember) {
-        console.log("No current member, aborting");
         return;
       }
 
@@ -311,22 +306,16 @@ export const MemberView = ({ navigation }) => {
         },
       };
 
-      console.log("Sending update to Wix:", JSON.stringify(updatedMember, null, 2));
-
       const result = await wixCient.members.updateMember(
         currentMember._id,
         updatedMember,
       );
       
-      console.log("Update result:", JSON.stringify(result, null, 2));
       return result;
     },
     onSuccess: (updatedMember) => {
-      console.log("Update successful!");
-      
       // Wix returns 'contact' not 'contactInfo' in the response
       const contact = updatedMember?.contactInfo || updatedMember?.contact;
-      console.log("Updated member contact:", contact);
       
       // updatedMember is the member object
       queryClient.setQueryData(["currentMember"], { member: updatedMember });
@@ -345,7 +334,6 @@ export const MemberView = ({ navigation }) => {
     },
     onError: (error) => {
       console.error("Update failed:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
     },
   });
 

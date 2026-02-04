@@ -9,6 +9,7 @@ import "react-native-gesture-handler";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import "react-native-url-polyfill/auto";
 import { LoginHandler } from "./authentication/LoginHandler";
+import { MemberHandler } from "./authentication/MemberHandler";
 import { WixSessionProvider } from "./authentication/session";
 import { initializeAuthSession } from "./authentication/wixSystemLogin";
 import { LoadingIndicator } from "./components/LoadingIndicator/LoadingIndicator";
@@ -87,8 +88,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <NotificationProvider onNotificationTap={handleNotificationTap}>
           <WixSessionProvider clientId={clientId}>
-            <AgeVerification>
-              <LoginHandler>
+            <MemberHandler>
+              <AgeVerification>
+                <LoginHandler>
                 <NavigationContainer
                   ref={navigationRef}
                   theme={GraftonNavigationTheme}
@@ -139,6 +141,7 @@ function App() {
                 </NavigationContainer>
               </LoginHandler>
             </AgeVerification>
+          </MemberHandler>
           </WixSessionProvider>
         </NotificationProvider>
       </QueryClientProvider>
