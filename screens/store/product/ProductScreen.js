@@ -3,7 +3,7 @@ import { checkout } from "@wix/ecom";
 import { products } from "@wix/stores";
 import * as Linking from "expo-linking";
 import * as React from "react";
-import { Pressable, ScrollView, useWindowDimensions, View, TouchableOpacity, Text as RNText, ActivityIndicator, Image, StyleSheet as RNStyleSheet } from "react-native";
+import { Pressable, ScrollView, useWindowDimensions, View, TouchableOpacity, Text as RNText, ActivityIndicator, Image, StyleSheet as RNStyleSheet, Alert } from "react-native";
 import {
   Portal,
   Snackbar,
@@ -19,6 +19,8 @@ import Routes from "../../../routes/routes";
 import { styles } from "../../../styles/store/product/styles";
 import { WixMediaImage } from "../../../WixMediaImage";
 import { theme as appTheme } from "../../../styles/theme";
+import { useNotifications } from "../../../context/NotificationContext";
+import { useWixSession } from "../../../authentication/session";
 
 // Custom Accordion Component
 const Accordion = ({ title, children, titleStyle, style }) => {
@@ -80,6 +82,11 @@ export function ProductScreen({ route, navigation }) {
   );
   const [addToCartSnackBarVisible, setAddToCartSnackBarVisible] =
     React.useState(false);
+  const [backInStockSubscribed, setBackInStockSubscribed] = React.useState(false);
+  const [subscribing, setSubscribing] = React.useState(false);
+  
+  const { expoPushToken, permissionGranted } = useNotifications();
+  const { isLoggedIn } = useWixSession();
 
   const selectedVariant = product.variants?.find(
     (variant) =>
@@ -147,6 +154,82 @@ export function ProductScreen({ route, navigation }) {
       setAddToCartSnackBarVisible(true);
     },
   });
+
+  const handleBackInStockSubscribe = async () => {
+    try {
+      // Check if user is logged in
+      if (!isLoggedIn) {
+        Alert.alert(
+          "Sign In Required",
+          "Please sign in to receive back-in-stock notifications.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { 
+              text: "Sign In", 
+              onPress: () => navigation.navigate(Routes.Account)
+            },
+          ]
+        );
+        return;
+      }
+
+      // Check if push notifications are enabled
+      if (!expoPushToken || !permissionGranted) {
+        Alert.alert(
+          "Notifications Disabled",
+          "Please enable notifications in your device settings to receive back-in-stock alerts.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      setSubscribing(true);
+
+      // Get member info
+      const { member } = await wixCient.members.getCurrentMember();
+      const memberId = member?._id;
+
+      if (!memberId) {
+        throw new Error("Could not get member ID");
+      }
+
+      // Get variant ID if applicable
+      const variantId = selectedVariant?._id || null;
+
+      // Call Wix Velo HTTP function to register subscription
+      const response = await fetch('https://www.graftonliquor.co.nz/_functions/backInStockSubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product._id,
+          productName: product.name,
+          variantId,
+          memberId,
+          pushToken: expoPushToken,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to subscribe');
+      }
+
+      setBackInStockSubscribed(true);
+      Alert.alert(
+        "Subscribed!",
+        "We'll notify you when this item is back in stock.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Back-in-stock subscribe failed:', error);
+      Alert.alert(
+        "Subscription Failed",
+        "Unable to subscribe for notifications. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   const inStock = productInStock(product, selectedVariant, requestedQuantity);
   const allProductOptionsSelected = (product.productOptions ?? []).every(
@@ -238,7 +321,50 @@ export function ProductScreen({ route, navigation }) {
                   Please select all product options
                 </RNText>
               ) : !inStock ? (
-                <RNText style={{ color: "#B22D1D" }}>Out of Stock</RNText>
+                <View>
+                  <RNText style={{ color: "#B22D1D", marginBottom: 12 }}>Out of Stock</RNText>
+                  <TouchableOpacity
+                    onPress={handleBackInStockSubscribe}
+                    disabled={backInStockSubscribed || subscribing}
+                    style={{
+                      backgroundColor: backInStockSubscribed 
+                        ? appTheme.colors.surfaceVariant 
+                        : appTheme.colors.surface,
+                      borderColor: appTheme.colors.accent,
+                      borderWidth: 1.5,
+                      borderRadius: 8,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      opacity: backInStockSubscribed ? 0.7 : 1,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    {subscribing ? (
+                      <ActivityIndicator color={appTheme.colors.accent} size="small" />
+                    ) : (
+                      <>
+                        <Ionicons 
+                          name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"} 
+                          size={20} 
+                          color={appTheme.colors.accent} 
+                        />
+                        <RNText style={{ 
+                          color: appTheme.colors.accent, 
+                          fontSize: 15, 
+                          fontWeight: '600' 
+                        }}>
+                          {backInStockSubscribed 
+                            ? "You'll be notified" 
+                            : "Notify me when back in stock"}
+                        </RNText>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <>
                   <RNText style={{ fontSize: 13, marginBottom: 8, color: appTheme.colors.text }}>
