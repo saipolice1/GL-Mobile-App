@@ -5,14 +5,24 @@ import { WixMediaImage } from '../../WixMediaImage';
 import { getRecentlyViewed } from '../../utils/recentlyViewed';
 import { theme } from '../../styles/theme';
 
-const RecentlyViewedCard = ({ product, onPress }) => {
+const RecentlyViewedCard = ({ product, onPress, trendingProductIds = [] }) => {
   const price = product.priceData?.formatted?.price || 
     `$${Number.parseFloat(product.priceData?.price || 0).toFixed(2)}`;
   
   const stockQuantity = product?.stock?.quantity;
   const isOutOfStock = stockQuantity === 0 || product?.stock?.inStock === false;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
-  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isInTrendingList = trendingProductIds.includes(product?._id);
+  
+  // Also check for known trending product names as a fallback
+  const hasKnownTrendingName = product?.name && (
+    product.name.toLowerCase().includes('absolut') ||
+    product.name.toLowerCase().includes('jim beam') ||
+    product.name.toLowerCase().includes('jameson') ||
+    product.name.toLowerCase().includes('canadian club')
+  );
+  
+  const isTrending = isInTrendingList || hasKnownTrendingName || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
   // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
@@ -56,7 +66,7 @@ const RecentlyViewedCard = ({ product, onPress }) => {
   );
 };
 
-export const RecentlyViewedSection = ({ onProductPress }) => {
+export const RecentlyViewedSection = ({ onProductPress, trendingProductIds = [] }) => {
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
@@ -96,6 +106,7 @@ export const RecentlyViewedSection = ({ onProductPress }) => {
             key={product._id}
             product={product}
             onPress={onProductPress}
+            trendingProductIds={trendingProductIds}
           />
         ))}
       </ScrollView>

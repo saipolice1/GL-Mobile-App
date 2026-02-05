@@ -22,7 +22,7 @@ const HORIZONTAL_PADDING = 16;
 const CARD_WIDTH = (width - (HORIZONTAL_PADDING * 2) - (CARD_GAP * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
 
 // Product Card for grid display
-const GridProductCard = ({ product, onPress }) => {
+const GridProductCard = ({ product, onPress, trendingProductIds = [] }) => {
   const price = product?.priceData?.formatted?.price || 
     `$${Number.parseFloat(product?.priceData?.price || 0).toFixed(2)}`;
   
@@ -30,7 +30,17 @@ const GridProductCard = ({ product, onPress }) => {
   const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
   const isOutOfStock = stockQuantity === 0 || !inStock;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
-  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isInTrendingList = trendingProductIds.includes(product?._id);
+  
+  // Also check for known trending product names as a fallback
+  const hasKnownTrendingName = product?.name && (
+    product.name.toLowerCase().includes('absolut') ||
+    product.name.toLowerCase().includes('jim beam') ||
+    product.name.toLowerCase().includes('jameson') ||
+    product.name.toLowerCase().includes('canadian club')
+  );
+  
+  const isTrending = isInTrendingList || hasKnownTrendingName || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
   // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
@@ -121,6 +131,7 @@ export const ViewAllModal = ({
   categoryIcon = null,
   categoryIconType = 'material',
   categoryColor = theme.colors.text,
+  trendingProductIds = [],
 }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -194,6 +205,7 @@ export const ViewAllModal = ({
                   <GridProductCard 
                     product={item}
                     onPress={handleProductPress}
+                    trendingProductIds={trendingProductIds}
                   />
                 )}
                 contentContainerStyle={styles.gridContent}

@@ -14,6 +14,7 @@ export const ProductGrid = ({
   isBestSellersCategory = false,
   onScroll,
   hideEmptyMessage = false,
+  trendingProductIds = [],
 }) => {
   
   if (isLoading) {
@@ -30,6 +31,7 @@ export const ProductGrid = ({
       onPress={onProductPress}
       onAddToCart={onAddToCart}
       isBestSeller={isBestSellersCategory}
+      trendingProductIds={trendingProductIds}
     />
   );
 

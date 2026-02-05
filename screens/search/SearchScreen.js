@@ -21,6 +21,7 @@ import { wixCient } from '../../authentication/wixClient';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
 import { CATEGORIES_DATA } from '../../components/Home/CategoryBarWithIcons';
 import Routes from '../../routes/routes';
+import { getBestSellersAlgorithmId, getRecommendations } from '../../utils/wixRecommendations';
 
 const { width } = Dimensions.get('window');
 // 3 columns with spacing
@@ -41,7 +42,7 @@ const FILTER_OPTIONS = [
   { value: 'on-sale', label: 'On Sale' },
 ];
 
-const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false }) => {
+const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false, trendingProductIds = [] }) => {
   const imageUrl = product?.media?.mainMedia?.image?.url 
     || product?.media?.items?.[0]?.image?.url
     || 'https://via.placeholder.com/200';
@@ -61,7 +62,17 @@ const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false }) =>
   
   // Check for low stock and trending
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
-  const isTrending = isBestSeller || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isInTrendingList = trendingProductIds.includes(product?._id);
+  
+  // Also check for known trending product names as a fallback
+  const hasKnownTrendingName = product?.name && (
+    product.name.toLowerCase().includes('absolut') ||
+    product.name.toLowerCase().includes('jim beam') ||
+    product.name.toLowerCase().includes('jameson') ||
+    product.name.toLowerCase().includes('canadian club')
+  );
+  
+  const isTrending = isBestSeller || isInTrendingList || hasKnownTrendingName || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
   
   // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
@@ -148,6 +159,7 @@ export const SearchScreen = ({ navigation }) => {
   const [sortBy, setSortBy] = useState('default');
   const [filterBy, setFilterBy] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [trendingProductIds, setTrendingProductIds] = useState([]);
 
   // Debounce search query
   useEffect(() => {
@@ -156,6 +168,25 @@ export const SearchScreen = ({ navigation }) => {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Fetch trending product IDs once on mount
+  useEffect(() => {
+    const fetchTrendingIds = async () => {
+      try {
+        const algorithmId = await getBestSellersAlgorithmId();
+        if (algorithmId) {
+          const productIds = await getRecommendations({
+            algorithmId,
+            minimumRecommendedItems: 10,
+          });
+          setTrendingProductIds(productIds || []);
+        }
+      } catch (error) {
+        console.log('Error fetching trending product IDs:', error);
+      }
+    };
+    fetchTrendingIds();
+  }, []);
 
   // Fetch collections
   const { data: collections = [] } = useQuery({
@@ -290,6 +321,7 @@ export const SearchScreen = ({ navigation }) => {
       product={item} 
       onPress={handleProductPress}
       onAddToCart={handleProductPress}
+      trendingProductIds={trendingProductIds}
     />
   );
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   StatusBar,
@@ -32,6 +32,7 @@ const LOGO_SCROLL_THRESHOLD = 50;
 
 export const HomeScreen = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('trending');
+  const [trendingProductIds, setTrendingProductIds] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [wishlistModalVisible, setWishlistModalVisible] = useState(false);
@@ -378,6 +379,35 @@ export const HomeScreen = ({ navigation }) => {
   // Check if we're in trending category
   const isBestSellersCategory = selectedCategory === 'trending';
 
+  // Fetch trending product IDs once on mount to use across all categories
+  useEffect(() => {
+    const fetchTrendingIds = async () => {
+      try {
+        // Try first approach: use getBestSellers to get trending products directly
+        const trendingProducts = await getBestSellers(20);
+        
+        if (trendingProducts && trendingProducts.length > 0) {
+          const productIds = trendingProducts.map(p => p._id).filter(Boolean);
+          setTrendingProductIds(productIds);
+          return;
+        }
+        
+        // Fallback approach: use recommendations API
+        const algorithmId = await getBestSellersAlgorithmId();
+        if (algorithmId) {
+          const productIds = await getRecommendations({
+            algorithmId,
+            minimumRecommendedItems: 10,
+          });
+          setTrendingProductIds(productIds || []);
+        }
+      } catch (error) {
+        console.log('Error fetching trending product IDs:', error);
+      }
+    };
+    fetchTrendingIds();
+  }, []);
+
   // Handle banner product press
   const handleBannerProductPress = useCallback((product) => {
     // Find new arrivals collection
@@ -437,6 +467,8 @@ export const HomeScreen = ({ navigation }) => {
             onViewAll={handleViewAll}
             isLoading={isLoadingProducts}
             onScroll={handleScroll}
+            trendingProductIds={trendingProductIds}
+            trendingProductIds={trendingProductIds}
             ListHeaderComponent={
               <View>
                 {/* Product Banner */}
@@ -456,7 +488,7 @@ export const HomeScreen = ({ navigation }) => {
             ListFooterComponent={
               <View>
                 {/* Recently Viewed */}
-                <RecentlyViewedSection onProductPress={handleProductPress} />
+                <RecentlyViewedSection onProductPress={handleProductPress} trendingProductIds={trendingProductIds} />
               </View>
             }
           />
@@ -471,6 +503,7 @@ export const HomeScreen = ({ navigation }) => {
             isBestSellersCategory={isBestSellersCategory}
             hideEmptyMessage={isAllCategory}
             onScroll={handleScroll}
+            trendingProductIds={trendingProductIds}
             ListHeaderComponent={
               <View>
                 {/* Product Banner - relevant to category */}
@@ -493,6 +526,7 @@ export const HomeScreen = ({ navigation }) => {
                     collections={collections}
                     onProductPress={handleProductPress}
                     onCategorySelect={handleCategorySelect}
+                    trendingProductIds={trendingProductIds}
                   />
                 )}
               </View>
@@ -501,7 +535,7 @@ export const HomeScreen = ({ navigation }) => {
               <View>
                 {/* Recently Viewed - show for all categories EXCEPT "All" */}
                 {!isAllCategory && (
-                  <RecentlyViewedSection onProductPress={handleProductPress} />
+                  <RecentlyViewedSection onProductPress={handleProductPress} trendingProductIds={trendingProductIds} />
                 )}
               </View>
             }
@@ -542,6 +576,7 @@ export const HomeScreen = ({ navigation }) => {
         categoryIcon={viewAllData?.icon}
         categoryIconType={viewAllData?.iconType}
         categoryColor={viewAllData?.color}
+        trendingProductIds={trendingProductIds}
       />
     </SafeAreaView>
   );

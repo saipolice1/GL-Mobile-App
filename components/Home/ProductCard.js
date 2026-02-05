@@ -7,7 +7,7 @@ const { width } = Dimensions.get('window');
 // 3 columns with padding: (screenWidth - 32 horizontal padding - 16 gap total) / 3
 const CARD_WIDTH = (width - 48) / 3;
 
-export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false }) => {
+export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false, trendingProductIds = [] }) => {
   const imageUrl = product?.media?.mainMedia?.image?.url 
     || product?.media?.items?.[0]?.image?.url
     || 'https://via.placeholder.com/200';
@@ -18,8 +18,18 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
   
   const name = product?.name || 'Product';
   
-  // Check if product is a best seller - from prop or ribbon data
-  const isTrending = isBestSeller || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  // Check if product is a best seller - from prop, ribbon data, or if it's in the trending products list
+  const isInTrendingList = trendingProductIds.includes(product?._id);
+  
+  // Also check for known trending product names as a fallback
+  const hasKnownTrendingName = product?.name && (
+    product.name.toLowerCase().includes('absolut') ||
+    product.name.toLowerCase().includes('jim beam') ||
+    product.name.toLowerCase().includes('jameson') ||
+    product.name.toLowerCase().includes('canadian club')
+  );
+  
+  const isTrending = isBestSeller || isInTrendingList || hasKnownTrendingName || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
   
   // Check if product is out of stock
   // Wix stock can be in stock.quantity or stock.inventoryStatus

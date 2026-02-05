@@ -6,7 +6,7 @@ import { theme } from '../../styles/theme';
 import { CATEGORIES_DATA } from './CategoryBarWithIcons';
 
 // Horizontal Product Card for category sliders
-const HorizontalProductCard = ({ product, onPress }) => {
+const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) => {
   const price = product.priceData?.formatted?.price || 
     `$${Number.parseFloat(product.priceData?.price || 0).toFixed(2)}`;
   
@@ -14,7 +14,17 @@ const HorizontalProductCard = ({ product, onPress }) => {
   const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
   const isOutOfStock = stockQuantity === 0 || !inStock;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
-  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isInTrendingList = trendingProductIds.includes(product?._id);
+  
+  // Also check for known trending product names as a fallback
+  const hasKnownTrendingName = product?.name && (
+    product.name.toLowerCase().includes('absolut') ||
+    product.name.toLowerCase().includes('jim beam') ||
+    product.name.toLowerCase().includes('jameson') ||
+    product.name.toLowerCase().includes('canadian club')
+  );
+  
+  const isTrending = isInTrendingList || hasKnownTrendingName || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
   // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
@@ -77,7 +87,7 @@ const HorizontalProductCard = ({ product, onPress }) => {
 };
 
 // Single category row with horizontal slider
-const CategoryRow = ({ category, products, onProductPress, onSeeAll }) => {
+const CategoryRow = ({ category, products, onProductPress, onSeeAll, trendingProductIds = [] }) => {
   if (!products || products.length === 0) return null;
 
   const IconComponent = category.iconType === 'material' ? MaterialCommunityIcons : Ionicons;
@@ -113,6 +123,7 @@ const CategoryRow = ({ category, products, onProductPress, onSeeAll }) => {
             key={product._id}
             product={product}
             onPress={onProductPress}
+            trendingProductIds={trendingProductIds}
           />
         ))}
       </ScrollView>
@@ -125,7 +136,8 @@ export const CategoryProductsSection = ({
   allProducts = [], 
   collections = [],
   onProductPress,
-  onCategorySelect 
+  onCategorySelect,
+  trendingProductIds = [],
 }) => {
   // Skip trending and all-products in the category list
   const displayCategories = CATEGORIES_DATA.filter(
@@ -180,6 +192,7 @@ export const CategoryProductsSection = ({
             products={categoryProducts}
             onProductPress={onProductPress}
             onSeeAll={onCategorySelect}
+            trendingProductIds={trendingProductIds}
           />
         );
       })}

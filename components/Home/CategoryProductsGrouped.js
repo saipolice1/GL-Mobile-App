@@ -7,7 +7,7 @@ import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
 
 // Horizontal Product Card - matching CategoryProductsSection style
-const HorizontalProductCard = ({ product, onPress }) => {
+const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) => {
   const price = product.priceData?.formatted?.price || 
     `$${Number.parseFloat(product.priceData?.price || 0).toFixed(2)}`;
   
@@ -15,7 +15,17 @@ const HorizontalProductCard = ({ product, onPress }) => {
   const inStock = product?.stock?.inStock !== false && product?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
   const isOutOfStock = stockQuantity === 0 || !inStock;
   const isLowStock = stockQuantity !== undefined && stockQuantity > 0 && stockQuantity <= 5;
-  const isTrending = product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
+  const isInTrendingList = trendingProductIds.includes(product?._id);
+  
+  // Also check for known trending product names as a fallback
+  const hasKnownTrendingName = product?.name && (
+    product.name.toLowerCase().includes('absolut') ||
+    product.name.toLowerCase().includes('jim beam') ||
+    product.name.toLowerCase().includes('jameson') ||
+    product.name.toLowerCase().includes('canadian club')
+  );
+  
+  const isTrending = isInTrendingList || hasKnownTrendingName || product?.ribbon === 'Best Seller' || product?.ribbons?.length > 0;
 
   // Show BOTH badges - trending on top-left, low stock on bottom-left
   const showLowStock = isLowStock && !isOutOfStock;
@@ -78,7 +88,7 @@ const HorizontalProductCard = ({ product, onPress }) => {
 };
 
 // Collection Row - fetches products from a SINGLE Wix collection by slug
-const CollectionRow = ({ collectionSlug, collectionName, collectionIcon, collectionIconType, collectionColor, allCollections, onProductPress, onViewAll }) => {
+const CollectionRow = ({ collectionSlug, collectionName, collectionIcon, collectionIconType, collectionColor, allCollections, onProductPress, onViewAll, trendingProductIds = [] }) => {
   // Find the collection ID from slug
   const collection = allCollections.find(c => c.slug === collectionSlug);
   const collectionId = collection?._id;
@@ -184,6 +194,7 @@ const CollectionRow = ({ collectionSlug, collectionName, collectionIcon, collect
             key={product._id}
             product={product}
             onPress={onProductPress}
+            trendingProductIds={trendingProductIds}
           />
         ))}
       </ScrollView>
@@ -210,7 +221,8 @@ export const CategoryProductsGrouped = ({
   onScroll,
   ListHeaderComponent,
   ListFooterComponent,
-  CATEGORIES_DATA = []
+  CATEGORIES_DATA = [],
+  trendingProductIds = [],
 }) => {
   // Find the category data
   const categoryData = CATEGORIES_DATA.find(c => c.slug === categorySlug);
@@ -243,6 +255,7 @@ export const CategoryProductsGrouped = ({
             allCollections={collections}
             onProductPress={onProductPress}
             onViewAll={onViewAll}
+            trendingProductIds={trendingProductIds}
           />
         ))}
       </View>
