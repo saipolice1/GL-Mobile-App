@@ -217,23 +217,44 @@ export const EmbeddedProductModal = ({
         return;
       }
 
-      const isDevelopment = !expoPushToken && __DEV__;
-      if (!isDevelopment && !expoPushToken) {
+      setSubscribing(true);
+
+      // Get member info with error handling for expired sessions
+      let memberId;
+      try {
+        const memberResponse = await wixCient.members.getCurrentMember();
+        memberId = memberResponse?.member?._id;
+      } catch (memberError) {
+        console.log('getCurrentMember failed:', memberError?.message || memberError);
+        Alert.alert(
+          "Sign In Required",
+          "Please sign in to receive back-in-stock notifications.",
+          [{ text: "OK" }]
+        );
+        setSubscribing(false);
+        return;
+      }
+
+      if (!memberId) {
+        Alert.alert(
+          "Sign In Required",
+          "Please sign in to receive back-in-stock notifications.",
+          [{ text: "OK" }]
+        );
+        setSubscribing(false);
+        return;
+      }
+
+      // Use a dev token fallback for Expo Go
+      const token = expoPushToken || (__DEV__ ? `dev_${memberId}` : null);
+      if (!token) {
         Alert.alert(
           "Notifications Disabled",
           "Please enable notifications to receive back-in-stock alerts.",
           [{ text: "OK" }]
         );
+        setSubscribing(false);
         return;
-      }
-
-      setSubscribing(true);
-
-      const { member } = await wixCient.members.getCurrentMember();
-      const memberId = member?._id;
-
-      if (!memberId) {
-        throw new Error("Could not get member ID");
       }
 
       // Call Wix Velo HTTP function to register subscription
@@ -245,7 +266,7 @@ export const EmbeddedProductModal = ({
           productName: currentProduct.name,
           variantId: null,
           memberId,
-          pushToken: expoPushToken,
+          pushToken: token,
         }),
       });
 

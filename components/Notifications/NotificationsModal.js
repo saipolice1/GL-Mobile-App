@@ -82,7 +82,7 @@ export const NotificationsModal = ({ visible, onClose }) => {
           {item.data?.productName || "Unknown Product"}
         </Text>
         <Text style={styles.subscriptionDate}>
-          Subscribed: {item.data?.createdDate ? format(new Date(item.data.createdDate), "MMM dd, yyyy") : "N/A"}
+          Subscribed: {item._createdDate ? format(new Date(item._createdDate), "MMM dd, yyyy") : "N/A"}
         </Text>
       </View>
       <TouchableOpacity
