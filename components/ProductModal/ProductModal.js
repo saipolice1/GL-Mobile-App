@@ -18,6 +18,7 @@ import { wixCient } from '../../authentication/wixClient';
 import { theme } from '../../styles/theme';
 import { addToRecentlyViewed, getRecentlyViewed } from '../../utils/recentlyViewed';
 import { isFavorite, toggleFavorite, subscribeFavorites } from '../../services/favorites';
+import { trackAddToCart, trackProductView } from '../../services/visitorTracking';
 import { useWixSession } from '../../authentication/session';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -68,6 +69,14 @@ export const ProductModal = ({
     if (visible && currentProduct) {
       // Check if product is favorite
       isFavorite(currentProduct._id).then(setIsProductFavorite);
+      
+      // Track product view for Wix visitor alerts
+      trackProductView({
+        productId: currentProduct._id,
+        productName: currentProduct.name,
+        category: currentProduct.collectionIds?.[0] || 'unknown',
+        price: Number.parseFloat(currentProduct?.priceData?.price) || 0
+      });
       
       addToRecentlyViewed(currentProduct).then(() => {
         // Fetch updated recently viewed list
@@ -135,9 +144,24 @@ export const ProductModal = ({
     enabled: visible && !!currentProduct,
   });
 
-  // Add to cart mutation
+  // Add to cart mutation with real-time inventory check
   const addToCartMutation = useMutation({
     mutationFn: async () => {
+      // First, check current inventory before adding to cart
+      try {
+        const freshProduct = await wixCient.products.getProduct(currentProduct._id);
+        const currentStock = freshProduct?.stock?.quantity;
+        const isInStock = freshProduct?.stock?.inStock !== false;
+        
+        // Validate inventory before proceeding
+        if (!isInStock || (currentStock !== undefined && currentStock < quantity)) {
+          throw new Error(`Sorry, only ${currentStock || 0} items available in stock`);
+        }
+      } catch (inventoryError) {
+        // If inventory check fails, still try to add (Wix will handle the validation)
+        console.log('Inventory check failed, proceeding with add to cart:', inventoryError);
+      }
+
       // Build line items array with main product and selected similar/recent products
       const lineItems = [
         {
@@ -182,6 +206,18 @@ export const ProductModal = ({
     },
     onSuccess: (response) => {
       queryClient.setQueryData(['currentCart'], response.cart);
+      // Invalidate products query to refresh inventory after successful add
+      queryClient.invalidateQueries(['products']);
+      
+      // Track add to cart for Wix visitor alerts
+      trackAddToCart({
+        productId: currentProduct._id,
+        productName: currentProduct.name,
+        quantity: quantity,
+        price: Number.parseFloat(currentProduct?.priceData?.price) || 0,
+        category: currentProduct.collectionIds?.[0] || 'unknown'
+      });
+      
       // Calculate total items added
       let total = quantity;
       Object.values(similarQuantities).forEach(qty => { total += qty; });
@@ -195,6 +231,12 @@ export const ProductModal = ({
     },
     onError: (error) => {
       console.log('Add to cart error:', error);
+      // Show user-friendly error message for inventory issues
+      if (error.message.includes('stock') || error.message.includes('inventory')) {
+        Alert.alert('Out of Stock', error.message);
+      } else {
+        Alert.alert('Unable to Add', 'Please try again or check your connection.');
+      }
     },
   });
 

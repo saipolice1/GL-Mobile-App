@@ -5,8 +5,8 @@ export const theme = {
   colors: {
     // Primary brand colors - Clean & Modern
     primary: '#FFFFFF',        // White - main background
-    secondary: '#4A2C2A',      // Dark brown - brand color for accents
-    accent: '#4A2C2A',         // Dark brown - CTA buttons (brand color)
+    secondary: '#000000',      // Black - brand color for accents
+    accent: '#000000',         // Black - CTA buttons (brand color)
     
     // Background colors
     background: '#FFFFFF',     // Main background - pure white
@@ -20,20 +20,20 @@ export const theme = {
     textLight: '#FFFFFF',      // Light text for dark backgrounds
     
     // Accent colors
-    gold: '#4A2C2A',           // Dark brown for premium elements (brand color)
+    gold: '#000000',           // Black for premium elements (brand color)
     amber: '#D4632A',          // Brand orange
     wine: '#C41E3A',           // Wine red for specials
     whiskey: '#D4A574',        // Whiskey brown
     
     // UI colors
-    success: '#4A2C2A',
+    success: '#000000',
     error: '#E53935',
     warning: '#F9A825',
     info: '#1976D2',
     
-    // Tab bar - Clean white with brand brown active
+    // Tab bar - Clean white with black active
     tabBar: '#FFFFFF',
-    tabBarActive: '#4A2C2A',
+    tabBarActive: '#000000',
     tabBarInactive: '#8A8A8A',
     
     // Cart/checkout

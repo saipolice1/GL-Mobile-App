@@ -258,11 +258,14 @@ export const HomeScreen = ({ navigation }) => {
       }
     },
     enabled: true,
-    // Real-time inventory updates
-    refetchInterval: 30000, // Refetch every 30 seconds
-    refetchIntervalInBackground: false, // Don't refetch when app is in background
-    staleTime: 25000, // Consider data stale after 25 seconds
-    cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    // Inventory-aware caching - balance performance with accuracy
+    staleTime: 30 * 1000, // Data fresh for 30 seconds (critical for inventory)
+    cacheTime: 2 * 60 * 1000, // Keep in cache for 2 minutes  
+    refetchInterval: 45 * 1000, // Refetch every 45 seconds (inventory updates)
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true, // Refresh when user returns to app
+    refetchOnMount: 'always', // Always check for fresh data on mount
+    retry: 2, // Retry twice for reliability
   });
 
   // Apply sorting and filtering to products

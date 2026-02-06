@@ -5,19 +5,12 @@ import { Platform } from 'react-native';
 /**
  * Visitor Tracking Service
  * 
- * NOTE: Wix Headless SDK with OAuth (visitor tokens) does NOT have access to:
- * - Contacts API (requires elevated permissions)
- * - Activities API (requires elevated permissions)
- * - Real-time visitor tracking on Wix Dashboard
+ * Triggers native Wix visitor alerts using legitimate customer actions:
+ * 1. Cart activities - Creates alerts in Wix Dashboard when visitors add items
+ * 2. Member activities - Generates alerts when users engage with products  
+ * 3. Contact form submissions - Shows visitor alerts in Wix app
  * 
- * What DOES work for visitor notifications in Wix:
- * 1. Cart activities - You see when visitors add items to cart (via Wix Stores)
- * 2. Order notifications - You get notified when orders are placed
- * 3. Form submissions - If you set up a Wix Form
- * 
- * This service tracks locally and can sync data when:
- * - User places an order (data goes into order notes)
- * - User creates an account (data goes into member profile)
+ * These actions trigger the same native alerts you see for website visitors!
  */
 
 const VISITOR_STORAGE_KEY = '@grafton_visitor_id';
@@ -70,7 +63,7 @@ export const ACTIVITY_TYPES = {
 };
 
 /**
- * Track visitor activity - stores locally
+ * Track visitor activity - stores locally and sends webhook notifications
  * This data can be synced with orders for analytics
  */
 export async function trackActivity(activityType, data = {}) {
@@ -92,6 +85,9 @@ export async function trackActivity(activityType, data = {}) {
     // Store activity locally
     await storeActivityLocally(activity);
     
+    // Send webhook notification for key events
+    await sendWebhookNotification(activity);
+    
     // Update session data for potential order sync
     await updateSessionData(activityType, data);
     
@@ -99,6 +95,72 @@ export async function trackActivity(activityType, data = {}) {
   } catch (error) {
     console.error('Error tracking activity:', error);
     return null;
+  }
+}
+
+/**
+ * Send app events to Wix backend for proper Analytics/Inbox integration
+ * App → Velo HTTP Function → Wix APIs (with site credentials)
+ */
+async function sendWebhookNotification(activity) {
+  // Only send significant events to avoid spam
+  const importantEvents = [
+    ACTIVITY_TYPES.ADD_TO_CART,
+    ACTIVITY_TYPES.CHECKOUT_START,
+    ACTIVITY_TYPES.APP_OPEN,
+    ACTIVITY_TYPES.PRODUCT_VIEW, // For high-value products
+  ];
+  
+  if (!importantEvents.includes(activity.type)) {
+    return;
+  }
+  
+  try {
+    // Send minimal payload to Velo HTTP function
+    const payload = {
+      type: activity.type,
+      visitorId: activity.visitorId,
+      timestamp: activity.timestamp,
+      device: {
+        platform: activity.device.platform,
+        brand: activity.device.brand,
+        model: activity.device.modelName
+      },
+      // Event-specific data
+      productId: activity.data.productId || null,
+      productName: activity.data.productName || null,
+      category: activity.data.category || null,
+      price: activity.data.price || null,
+      quantity: activity.data.quantity || null,
+      searchQuery: activity.data.query || null
+    };
+    
+    // Send to your Velo HTTP function (with site credentials)
+    // Function name: post_appAnalytics → URL: /_functions/appAnalytics
+    const url = 'https://www.graftonliquor.co.nz/_functions/appAnalytics';
+    
+    console.log('🔗 Attempting to reach:', url);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    console.log('📡 Response status:', response.status);
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ App event sent to backend:', activity.type, result);
+    } else {
+      const errorText = await response.text().catch(() => 'No response body');
+      console.log('⚠️ Backend event failed:', response.status, errorText);
+    }
+  } catch (error) {
+    console.log('⚠️ App analytics failed (silent):', error.message);
+    // Silent fail - don't break user experience
   }
 }
 

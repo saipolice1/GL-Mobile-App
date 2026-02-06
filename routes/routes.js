@@ -8,6 +8,7 @@ const Routes = {
   Checkout: "Checkout",
   Home: "Home",
   Search: "Search",
+  Chat: "Chat",
   Profile: "Account",
   Help: "Help",
   HelpChat: "HelpChat",

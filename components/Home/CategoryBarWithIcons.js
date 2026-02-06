@@ -174,17 +174,21 @@ export const CATEGORIES_DATA = [
     slug: 'other', 
     icon: 'shopping',
     iconType: 'material',
+    customImage: require('../../assets/category-icons/accessories.png'),
     color: '#20B2AA',
   },
 ];
 
 const CategoryIcon = ({ category }) => {
-  // Trending and Accessories stay at 50
-  const noChangeCategories = ['trending', 'accessories'];
+  // Trending stays at 50, Accessories reduced to 44
+  const trendingCategory = ['trending'];
+  const accessoriesCategory = ['accessories'];
   // RTD reduced to 42, others reduced to 60
   let size;
-  if (noChangeCategories.includes(category.id)) {
+  if (trendingCategory.includes(category.id)) {
     size = 50;
+  } else if (accessoriesCategory.includes(category.id)) {
+    size = 38;
   } else if (category.id === 'rtd') {
     size = 42;
   } else {

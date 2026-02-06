@@ -5,6 +5,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import * as React from "react";
+import { useEffect } from "react";
 import "react-native-gesture-handler";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import "react-native-url-polyfill/auto";
@@ -18,6 +19,7 @@ import { AgeVerification } from "./components/AgeVerification/AgeVerification";
 import { tabs } from "./data/tabs/data";
 import { theme as appTheme } from "./styles/theme";
 import { NotificationProvider } from "./context/NotificationContext";
+import { trackAppOpen } from "./services/visitorTracking";
 import Routes from "./routes/routes";
 
 // Initialize WebBrowser auth session on app startup
@@ -67,6 +69,11 @@ function App() {
   // System fonts are used - no custom font loading needed
   const clientId = process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "";
   const navigationRef = React.useRef(null);
+
+  // Track app open for Wix visitor alerts
+  useEffect(() => {
+    trackAppOpen();
+  }, []);
 
   // Handle notification taps - navigate to appropriate screen
   const handleNotificationTap = React.useCallback((data) => {

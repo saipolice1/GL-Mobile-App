@@ -9,8 +9,8 @@ const CHAT_HISTORY_KEY = '@grafton_chat_history';
 const PENDING_MESSAGES_KEY = '@grafton_pending_messages';
 
 // Your store email for notifications
-const STORE_EMAIL = 'support@graftonliquor.com';
-const STORE_PHONE = '+15551234567'; // Update with your actual number
+const STORE_EMAIL = 'sales@graftonliquor.co.nz';
+const STORE_PHONE = '+64223039580';
 
 // Chat message types
 export const MESSAGE_TYPES = {
@@ -24,42 +24,71 @@ export const MESSAGE_TYPES = {
 export const FAQ_CATEGORIES = [
   {
     id: 'delivery',
-    title: 'Delivery & Shipping',
+    title: 'Delivery & Pickup',
     icon: 'truck',
     questions: [
-      { q: 'What are the delivery options?', a: 'We offer same-day delivery for orders over $80 and free delivery for orders over $200. Otherwise, in-store pickup is available.' },
-      { q: 'How long does delivery take?', a: 'Same-day delivery is available for orders placed before 2pm. Standard delivery takes 1-3 business days.' },
-      { q: 'What areas do you deliver to?', a: 'We deliver to most areas within the city. Enter your address at checkout to confirm availability.' },
+      { 
+        q: 'Do you offer delivery services?', 
+        a: 'Yes, we provide quick 45-minute local delivery within the Auckland region. We also offer nationwide shipping for spirits and wines, which typically takes 1-3 business days. Just select your preferred shipping method, date, and time during checkout, and we\'ll handle the rest.' 
+      },
+      { 
+        q: 'Where can I pick up my order?', 
+        a: 'You can pick up your order at 35 Park Road, Grafton, Auckland, New Zealand.' 
+      },
+      {
+        q: 'How long does delivery take?',
+        a: 'Local Auckland delivery takes approximately 45 minutes. Nationwide shipping takes 3-5 business days and arrives promptly and securely.'
+      },
+      {
+        q: 'Is there a delivery fee?',
+        a: 'Shipping is included for orders over $200. For smaller orders, a delivery fee applies depending on your location.'
+      },
     ]
   },
   {
-    id: 'orders',
-    title: 'Orders & Payment',
+    id: 'ordering',
+    title: 'Ordering & Checkout',
     icon: 'receipt',
     questions: [
-      { q: 'How can I track my order?', a: 'You can track your order in the app under "My Account" > "Orders". You\'ll also receive notifications for order updates.' },
-      { q: 'What payment methods do you accept?', a: 'We accept all major credit/debit cards, Apple Pay, and Google Pay.' },
-      { q: 'Can I cancel my order?', a: 'Orders can be cancelled within 30 minutes of placing. Contact us immediately if you need to cancel.' },
+      {
+        q: 'How do I place a Click & Collect order?',
+        a: 'Simply add items to your cart, select "Click & Collect" at checkout, complete your payment, and your order will be ready for pickup in just 5 minutes at our Grafton location.'
+      },
+      {
+        q: 'Can I use Afterpay in-store?', 
+        a: 'Yes, we accept Afterpay for online \'Click & Collect\' and \'Delivery\' options at checkout. Choose \'Click & Collect\' at checkout, and your order will be ready in just 5 minutes. Unfortunately, Afterpay is not available for in-store purchases.' 
+      },
+      {
+        q: 'What payment methods do you accept?',
+        a: 'We accept all major credit/debit cards, Apple Pay, Google Pay, and Afterpay for online orders. Cash is accepted for in-store purchases.'
+      },
+      {
+        q: 'Can I modify or cancel my order?',
+        a: 'Orders can be modified or cancelled within 30 minutes of placing. Please contact us immediately at +64 22 303 9580 if you need to make changes.'
+      },
+      {
+        q: 'How do I track my order?',
+        a: 'You\'ll receive order confirmation and tracking information via email. For Click & Collect orders, you\'ll be notified when your order is ready for pickup.'
+      },
     ]
   },
   {
-    id: 'products',
-    title: 'Products & Stock',
-    icon: 'bottle-wine',
+    id: 'store',
+    title: 'Store Information',
+    icon: 'store',
     questions: [
-      { q: 'How do I know if an item is in stock?', a: 'Items marked "Sold Out" are unavailable. Low stock items show "Only X left" badges.' },
-      { q: 'Can I request a product you don\'t have?', a: 'Yes! Send us a message and we\'ll try to source it for you.' },
-      { q: 'Are your products authentic?', a: 'Yes, all products are 100% authentic and sourced directly from authorised distributors.' },
-    ]
-  },
-  {
-    id: 'account',
-    title: 'Account & Support',
-    icon: 'account-circle',
-    questions: [
-      { q: 'How do I create an account?', a: 'Tap "My Account" in the bottom tab and follow the sign up prompts.' },
-      { q: 'How do I reset my password?', a: 'Tap "Forgot Password" on the login screen and follow the email instructions.' },
-      { q: 'How do I contact support?', a: 'Use the chat feature to send us a message, or email support@graftonliquor.com' },
+      { 
+        q: 'What are your store hours?', 
+        a: 'Our store is open 7 days a week from 11:00 AM to 9:00 PM. (Sunday we open at 10:00). Feel free to visit us anytime during these hours!' 
+      },
+      {
+        q: 'Do you have age restrictions?',
+        a: 'Yes, you must be 18 or older to purchase alcohol. Valid ID is required for all alcohol purchases, both online and in-store.'
+      },
+      {
+        q: 'Do you offer gift wrapping?',
+        a: 'Yes, we offer gift bags, pull bows, and gift hampers. You can add these accessories to your order during checkout.'
+      },
     ]
   },
 ];
