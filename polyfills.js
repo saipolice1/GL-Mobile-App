@@ -1,6 +1,31 @@
 import "react-native-url-polyfill/auto";
 import { TextEncoder, TextDecoder } from "text-encoding";
 import * as Crypto from "expo-crypto";
+import { Buffer } from "buffer";
+
+// Polyfill Buffer globally
+if (typeof global.Buffer === "undefined") {
+  global.Buffer = Buffer;
+}
+
+// Polyfill process for Node.js packages
+if (typeof global.process === "undefined") {
+  global.process = {
+    env: {},
+    version: "",
+    platform: "react-native",
+    nextTick: setImmediate,
+  };
+} else {
+  // Ensure nextTick exists even if process is already defined
+  if (!global.process.nextTick) {
+    global.process.nextTick = setImmediate;
+  }
+  // Ensure env exists
+  if (!global.process.env) {
+    global.process.env = {};
+  }
+}
 
 if (typeof TextEncoder === "undefined") {
   Object.defineProperty(global, "TextEncoder", {

@@ -17,7 +17,13 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "nz.co.graftonliquor.app"
+      "bundleIdentifier": "nz.co.graftonliquor.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,6 +39,11 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ff7755f5-3855-4230-bf8d-7ec40561eed4"
+      }
+    }
   }
 }

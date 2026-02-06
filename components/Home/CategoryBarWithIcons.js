@@ -43,7 +43,7 @@ export const CATEGORIES_DATA = [
     name: 'RTD', 
     slug: 'rtd-pre-mixed', 
     icon: 'bottle-soda',
-    iconType: 'material-community',
+    iconType: 'material',
     customImage: require('../../assets/category-icons/rtd-can.jpg'),
     color: '#FF69B4',
   },
@@ -51,14 +51,14 @@ export const CATEGORIES_DATA = [
     id: 'whiskey', 
     name: 'Whiskey', 
     slug: 'whiskey', 
-    icon: 'liquor',
+    icon: 'bottle-wine-outline',
     iconType: 'material',
     customImage: require('../../assets/category-icons/whiskey.png'),
     color: '#D2691E',
     displayCollections: [
-      { name: 'All Whiskey', slug: 'whiskey', icon: 'liquor', iconType: 'material', color: '#D2691E' },
-      { name: 'Bourbon', slug: 'bourbon', icon: 'barrel', iconType: 'material', color: '#8B4513' },
-      { name: 'Single Malt', slug: 'single-malt', icon: 'glass-stange', iconType: 'material', color: '#CD853F' },
+      { name: 'All Whiskey', slug: 'whiskey', icon: 'bottle-wine-outline', iconType: 'material', color: '#D2691E' },
+      { name: 'Bourbon', slug: 'bourbon', icon: 'cup', iconType: 'material', color: '#8B4513' },
+      { name: 'Single Malt', slug: 'single-malt', icon: 'glass-cocktail', iconType: 'material', color: '#CD853F' },
     ]
   },
   { 
@@ -83,7 +83,7 @@ export const CATEGORIES_DATA = [
     id: 'rum', 
     name: 'Rum', 
     slug: 'rum', 
-    icon: 'bottle-tonic',
+    icon: 'bottle-wine-outline',
     iconType: 'material',
     customImage: require('../../assets/category-icons/rum.png'),
     color: '#8B0000',
@@ -124,7 +124,7 @@ export const CATEGORIES_DATA = [
     customImage: require('../../assets/category-icons/white-wine.png'),
     color: '#F5DEB3',
     displayCollections: [
-      { name: 'Champagne', slug: 'champagne', icon: 'glass-flute', iconType: 'material', color: '#FFD700' },
+      { name: 'Champagne', slug: 'champagne', icon: 'glass-wine', iconType: 'material', color: '#FFD700' },
       { name: 'Sparkling Wine', slug: 'sparkling-wine', icon: 'bottle-wine', iconType: 'material', color: '#C5B358' },
       { name: 'Chardonnay', slug: 'chard', icon: 'glass-wine', iconType: 'material', color: '#F5DEB3' },
       { name: 'Sauvignon Blanc', slug: 'sav', icon: 'glass-wine', iconType: 'material', color: '#E8E4C9' },
@@ -147,7 +147,7 @@ export const CATEGORIES_DATA = [
       { name: 'Shiraz', slug: 'shiraz', icon: 'glass-wine', iconType: 'material', color: '#5C1A1B' },
       { name: 'Red Blend', slug: 'red-blend-1', icon: 'glass-wine', iconType: 'material', color: '#8B0000' },
       { name: 'Tempranillo', slug: 'temarnillo-1', icon: 'glass-wine', iconType: 'material', color: '#6B1515' },
-      { name: 'Port Wine', slug: 'port', icon: 'glass-tulip', iconType: 'material', color: '#7B3F00' },
+      { name: 'Port Wine', slug: 'port', icon: 'glass-wine', iconType: 'material', color: '#7B3F00' },
     ]
   },
   { 
@@ -172,7 +172,7 @@ export const CATEGORIES_DATA = [
     id: 'accessories', 
     name: 'Accessories', 
     slug: 'other', 
-    icon: 'shopping',
+    icon: 'shopping-bag',
     iconType: 'material',
     customImage: require('../../assets/category-icons/accessories.png'),
     color: '#20B2AA',

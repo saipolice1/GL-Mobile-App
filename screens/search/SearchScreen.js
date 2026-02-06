@@ -132,17 +132,35 @@ const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false, tren
 const CategoryChip = ({ category, isSelected, onPress }) => {
   const IconComponent = category.iconType === 'material' ? MaterialCommunityIcons : Ionicons;
   
+  // Fallback icons if the specified icon doesn't exist
+  const renderIcon = () => {
+    try {
+      return (
+        <IconComponent 
+          name={category.icon} 
+          size={14} 
+          color={isSelected ? '#FFF' : (category.color || theme.colors.text)} 
+        />
+      );
+    } catch (error) {
+      // Fallback to a default icon if the specified icon doesn't exist
+      return (
+        <Ionicons 
+          name="apps" 
+          size={14} 
+          color={isSelected ? '#FFF' : (category.color || theme.colors.text)} 
+        />
+      );
+    }
+  };
+  
   return (
     <TouchableOpacity
       style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
       onPress={() => onPress(category.slug)}
       activeOpacity={0.7}
     >
-      <IconComponent 
-        name={category.icon} 
-        size={14} 
-        color={isSelected ? '#FFF' : (category.color || theme.colors.text)} 
-      />
+      {renderIcon()}
       <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}>
         {category.name}
       </Text>
