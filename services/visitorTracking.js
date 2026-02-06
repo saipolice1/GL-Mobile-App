@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { wixCient } from '../authentication/wixClient';
+import { members } from '@wix/members';
 
 /**
  * Visitor Tracking Service
@@ -16,6 +18,7 @@ import { Platform } from 'react-native';
 const VISITOR_STORAGE_KEY = '@grafton_visitor_id';
 const ACTIVITY_STORAGE_KEY = '@grafton_visitor_activity';
 const SESSION_KEY = '@grafton_session_data';
+const FIRST_LAUNCH_KEY = '@grafton_first_launch';
 
 // Generate a unique visitor ID
 const generateVisitorId = () => {
@@ -37,6 +40,26 @@ export async function getVisitorId() {
   }
 }
 
+// Check if this is the first time the app has been launched
+export async function isFirstLaunch() {
+  try {
+    const hasLaunched = await AsyncStorage.getItem(FIRST_LAUNCH_KEY);
+    return hasLaunched === null;
+  } catch (error) {
+    console.error('Error checking first launch:', error);
+    return false;
+  }
+}
+
+// Mark that the app has been launched
+export async function markAppLaunched() {
+  try {
+    await AsyncStorage.setItem(FIRST_LAUNCH_KEY, new Date().toISOString());
+  } catch (error) {
+    console.error('Error marking app launched:', error);
+  }
+}
+
 // Get device info for tracking
 export function getDeviceInfo() {
   return {
@@ -46,6 +69,24 @@ export function getDeviceInfo() {
     osVersion: String(Platform.Version),
     isDevice: Device.isDevice,
   };
+}
+
+// Get member info if logged in
+export async function getMemberInfo() {
+  try {
+    const member = await wixCient.use(members).getCurrentMember();
+    if (member?.member) {
+      return {
+        memberId: member.member._id || null,
+        memberName: member.member.profile?.nickname || member.member.loginEmail || 'Member',
+        memberEmail: member.member.loginEmail || null,
+      };
+    }
+    return null;
+  } catch (error) {
+    // User not logged in or error getting member info
+    return null;
+  }
 }
 
 // Activity types
@@ -60,6 +101,7 @@ export const ACTIVITY_TYPES = {
   CHECKOUT_COMPLETE: 'checkout_complete',
   APP_OPEN: 'app_open',
   APP_CLOSE: 'app_close',
+  FIRST_APP_OPEN: 'first_app_open', // New visitor - first time opening app
 };
 
 /**
@@ -70,6 +112,7 @@ export async function trackActivity(activityType, data = {}) {
   try {
     const visitorId = await getVisitorId();
     const deviceInfo = getDeviceInfo();
+    const memberInfo = await getMemberInfo();
     
     const activity = {
       id: `act_${Date.now()}`,
@@ -78,6 +121,7 @@ export async function trackActivity(activityType, data = {}) {
       data,
       timestamp: new Date().toISOString(),
       device: deviceInfo,
+      member: memberInfo,
     };
     
     console.log('📊 Tracking:', activity.type, data.productName || data.page || '');
@@ -108,6 +152,7 @@ async function sendWebhookNotification(activity) {
     ACTIVITY_TYPES.ADD_TO_CART,
     ACTIVITY_TYPES.CHECKOUT_START,
     ACTIVITY_TYPES.APP_OPEN,
+    ACTIVITY_TYPES.FIRST_APP_OPEN, // New visitors
     ACTIVITY_TYPES.PRODUCT_VIEW, // For high-value products
   ];
   
@@ -126,13 +171,18 @@ async function sendWebhookNotification(activity) {
         brand: activity.device.brand,
         model: activity.device.modelName
       },
+      // Member info (if logged in)
+      memberId: activity.member?.memberId || null,
+      memberName: activity.member?.memberName || null,
+      memberEmail: activity.member?.memberEmail || null,
       // Event-specific data
       productId: activity.data.productId || null,
       productName: activity.data.productName || null,
       category: activity.data.category || null,
       price: activity.data.price || null,
       quantity: activity.data.quantity || null,
-      searchQuery: activity.data.query || null
+      searchQuery: activity.data.query || null,
+      isNewVisitor: activity.data.isNewVisitor || null
     };
     
     // Send to your Velo HTTP function (with site credentials)
@@ -340,8 +390,24 @@ export const trackCheckoutStart = (cartTotal, itemCount) =>
 export const trackCheckoutComplete = (orderId, orderTotal, itemCount) => 
   trackActivity(ACTIVITY_TYPES.CHECKOUT_COMPLETE, { orderId, orderTotal, itemCount });
 
-export const trackAppOpen = () => 
-  trackActivity(ACTIVITY_TYPES.APP_OPEN, {});
+export const trackAppOpen = async () => {
+  // Check if this is the first launch
+  const firstLaunch = await isFirstLaunch();
+  
+  if (firstLaunch) {
+    // Track as new visitor
+    await trackActivity(ACTIVITY_TYPES.FIRST_APP_OPEN, {
+      isNewVisitor: true,
+      installDate: new Date().toISOString(),
+    });
+    await markAppLaunched();
+  } else {
+    // Track as returning visitor
+    await trackActivity(ACTIVITY_TYPES.APP_OPEN, {
+      isNewVisitor: false,
+    });
+  }
+};
 
 export const trackAppClose = () => 
   trackActivity(ACTIVITY_TYPES.APP_CLOSE, {});
