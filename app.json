@@ -30,6 +30,7 @@
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundImage": "./assets/adaptive-icon-background.png"
       },
+      "versionCode": 11,
       "package": "nz.co.graftonliquor.app"
     },
     "web": {

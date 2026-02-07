@@ -1,2 +1,6 @@
+# Google Play service account key (keep out of git)
+secrets/
+*.service-account.json
+
 node_modules
 .expo/
