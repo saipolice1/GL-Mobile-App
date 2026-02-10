@@ -6,6 +6,7 @@ import { redirects } from "@wix/redirects";
 import { contacts } from "@wix/crm";
 
 const clientId = process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "";
+console.log("=== WixClient: Initializing with clientId:", clientId || "(empty)" , "===");
 
 export const wixCient = createClient({
   auth: OAuthStrategy({

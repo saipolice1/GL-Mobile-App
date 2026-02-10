@@ -43,12 +43,15 @@ export function WixSessionProvider(props) {
     try {
       setSessionState(null);
       setSessionLoading(true);
-      console.log("Generating visitor tokens...");
+      console.log("=== Generating visitor tokens ===");
+      console.log("Client ID for visitor tokens:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
       const tokens = await wixCient.auth.generateVisitorTokens();
-      console.log("Visitor tokens generated successfully");
+      console.log("Visitor tokens generated successfully:", !!tokens);
+      console.log("Visitor accessToken exists:", !!tokens?.accessToken);
       await setSession(tokens);
     } catch (error) {
       console.error("Failed to generate visitor tokens:", error);
+      console.error("Visitor token error details:", JSON.stringify(error, null, 2));
       setSessionError(error);
       setSessionLoading(false);
     }
@@ -56,13 +59,19 @@ export function WixSessionProvider(props) {
 
   React.useEffect(() => {
     setSessionLoading(true);
+    console.log("=== WixSessionProvider: Starting session initialization ===");
     
     const restoreSession = async () => {
       try {
         const sessionStr = await SecureStore.getItemAsync("wixSession");
+        console.log("Stored session exists:", !!sessionStr);
         
         if (sessionStr) {
           const storedSession = JSON.parse(sessionStr);
+          console.log("Stored session clientId:", storedSession.clientId);
+          console.log("Current clientId:", props.clientId);
+          console.log("Has refreshToken (member):", !!storedSession.tokens?.refreshToken);
+          console.log("Has accessToken:", !!storedSession.tokens?.accessToken);
           
           // Check if client ID matches
           if (storedSession.clientId === props.clientId && storedSession.tokens) {
