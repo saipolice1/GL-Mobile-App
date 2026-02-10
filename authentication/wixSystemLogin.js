@@ -1,20 +1,9 @@
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
-import { makeRedirectUri } from "expo-auth-session";
 import { wixCient } from "./wixClient";
 
 const WIX_SESSION_KEY = "wixSession";
-
-// Build redirect URI dynamically so it works in both Expo Go and production builds
-function getRedirectUri() {
-  const uri = makeRedirectUri({
-    scheme: "graftonliquor",
-    path: "oauth/wix/callback",
-    preferLocalhost: false,
-  });
-  console.log("OAuth redirect URI:", uri);
-  return uri;
-}
+const REDIRECT_URI = "graftonliquor://oauth/wix/callback";
 
 /**
  * Initialize auth session - call once at app startup
@@ -30,13 +19,12 @@ export function initializeAuthSession() {
  */
 export async function loginWithSystemBrowser() {
   try {
-    const redirectUri = getRedirectUri();
     console.log("Starting Wix OAuth login flow...");
-    console.log("Using redirect URI:", redirectUri);
+    console.log("Using redirect URI:", REDIRECT_URI);
     console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
 
     // 1) Generate oauthData and authUrl
-    const oauthData = wixCient.auth.generateOAuthData(redirectUri);
+    const oauthData = wixCient.auth.generateOAuthData(REDIRECT_URI);
     console.log("OAuth data generated, requesting auth URL...");
     
     let authUrl;
@@ -52,7 +40,7 @@ export async function loginWithSystemBrowser() {
     // 2) Use WebBrowser.openAuthSessionAsync 
     const result = await WebBrowser.openAuthSessionAsync(
       authUrl,
-      redirectUri
+      REDIRECT_URI
     );
 
     console.log("WebBrowser result:", result);
