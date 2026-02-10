@@ -24,7 +24,7 @@ export function LoginHandler(props) {
   const silentLogin = React.useCallback(
     async (sessionToken) => {
       try {
-        const redirectUri = Linking.createURL("/oauth/wix/callback");
+        const redirectUri = "graftonliquor://oauth/wix/callback";
         const data = wixCient.auth.generateOAuthData(redirectUri);
         console.log("Silent login redirect URI:", redirectUri);
         console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
