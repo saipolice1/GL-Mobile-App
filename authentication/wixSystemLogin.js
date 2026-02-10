@@ -3,8 +3,8 @@ import * as SecureStore from "expo-secure-store";
 import { wixCient } from "./wixClient";
 
 const WIX_SESSION_KEY = "wixSession";
-// Wix requires HTTPS redirect URIs - use Expo's auth proxy
-const REDIRECT_URI = "https://auth.expo.io/@saipolice/grafton-liquor";
+// Use custom scheme - this was working before
+const REDIRECT_URI = "graftonliquor://oauth-callback";
 
 /**
  * Initialize auth session - call once at app startup
@@ -24,8 +24,11 @@ export async function loginWithSystemBrowser() {
     console.log("Using redirect URI:", REDIRECT_URI);
     console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
 
-    // 1) Generate oauthData and authUrl
-    const oauthData = wixCient.auth.generateOAuthData(REDIRECT_URI);
+    // 1) Generate oauthData and authUrl - pass redirectUri twice (original pattern)
+    const oauthData = wixCient.auth.generateOAuthData(
+      REDIRECT_URI,
+      REDIRECT_URI
+    );
     console.log("OAuth data generated, requesting auth URL...");
     
     let authUrl;

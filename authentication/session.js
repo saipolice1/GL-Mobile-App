@@ -43,15 +43,17 @@ export function WixSessionProvider(props) {
     try {
       setSessionState(null);
       setSessionLoading(true);
-      console.log("=== Generating visitor tokens ===");
-      console.log("Client ID for visitor tokens:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
+      console.log("=== VISITOR TOKEN START ===");
+      console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
       const tokens = await wixCient.auth.generateVisitorTokens();
-      console.log("Visitor tokens generated successfully:", !!tokens);
-      console.log("Visitor accessToken exists:", !!tokens?.accessToken);
+      console.log("=== VISITOR TOKEN SUCCESS ===");
+      console.log("accessToken:", tokens?.accessToken ? "EXISTS" : "MISSING");
       await setSession(tokens);
     } catch (error) {
-      console.error("Failed to generate visitor tokens:", error);
-      console.error("Visitor token error details:", JSON.stringify(error, null, 2));
+      console.error("=== VISITOR TOKEN FAILED ===");
+      console.error("Error message:", error?.message || error);
+      console.error("Error status:", error?.status || error?.response?.status);
+      console.error("Full error:", JSON.stringify(error, null, 2));
       setSessionError(error);
       setSessionLoading(false);
     }
@@ -63,6 +65,14 @@ export function WixSessionProvider(props) {
     
     const restoreSession = async () => {
       try {
+        // Check if we need to clear corrupted session (one-time fix)
+        const sessionCleared = await SecureStore.getItemAsync("sessionCleared_v2");
+        if (!sessionCleared) {
+          console.log("Clearing potentially corrupted session (one-time fix)...");
+          await SecureStore.deleteItemAsync("wixSession");
+          await SecureStore.setItemAsync("sessionCleared_v2", "true");
+        }
+        
         const sessionStr = await SecureStore.getItemAsync("wixSession");
         console.log("Stored session exists:", !!sessionStr);
         

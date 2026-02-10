@@ -262,7 +262,7 @@ export const MemberView = ({ navigation }) => {
 
   // Fetch current member on mount and when session changes
   // NOTE: getCurrentMember() only returns identity info (ID, profile, nickname)
-  // Contact details come from: 1) AsyncStorage (keyed by member ID), 2) updateMember() responses
+  // Contact details come from: 1) Contacts API (using contactId), 2) AsyncStorage (keyed by member ID)
   useEffect(() => {
     const fetchCurrentMember = async () => {
       if (!session?.refreshToken) {
@@ -278,28 +278,49 @@ export const MemberView = ({ navigation }) => {
 
         console.log('=== MemberView: Fetched member data from Wix ===');
         console.log('Member ID:', member._id);
-        console.log('Profile:', member.profile?.nickname);
+        console.log('Contact ID:', member.contactId);
+        console.log('Profile:', JSON.stringify(member.profile, null, 2));
         
-        // Load contact data for this specific member from AsyncStorage
+        // Try to fetch contact using contactId from Contacts API
+        let wixFirstName = member.profile?.nickname || '';
+        let wixLastName = '';
+        let wixPhone = '';
+        
+        if (member.contactId) {
+          try {
+            console.log('Fetching contact details for contactId:', member.contactId);
+            const contactResponse = await wixCient.contacts.getContact(member.contactId);
+            console.log('Contact from Contacts API:', JSON.stringify(contactResponse, null, 2));
+            
+            if (contactResponse?.contact) {
+              const c = contactResponse.contact;
+              wixFirstName = c.info?.name?.first || wixFirstName;
+              wixLastName = c.info?.name?.last || '';
+              wixPhone = c.info?.phones?.[0]?.phone || '';
+            }
+          } catch (contactErr) {
+            console.log('Could not fetch contact (may need permissions):', contactErr?.message || contactErr);
+          }
+        }
+        
+        // Load stored contact as fallback
         const storedContact = await loadContactForMember(member._id);
         console.log('Loaded stored contact for member:', storedContact);
         
-        // getCurrentMember() with member tokens doesn't return contact/loginEmail
-        // Contact details are persisted in MemberHandler (AsyncStorage per member ID)
-        // and updated from updateMember() responses
-        
         const enrichedMember = {
           ...member,
-          // Contact data comes from MemberHandler (loaded from AsyncStorage for this member)
+          // Prefer Wix Contacts API data, then stored data, then profile nickname
           contact: {
-            firstName: storedContact?.firstName || '',
-            lastName: storedContact?.lastName || '',
-            phones: storedContact?.phone ? [storedContact.phone] : [],
+            firstName: wixFirstName || storedContact?.firstName || '',
+            lastName: wixLastName || storedContact?.lastName || '',
+            phones: wixPhone ? [wixPhone] : (storedContact?.phone ? [storedContact.phone] : []),
           },
         };
 
-        console.log('✅ Member loaded - using persisted contact data for member:', member._id);
-        console.log('   firstName:', storedContact?.firstName || '', 'lastName:', storedContact?.lastName || '', 'phone:', storedContact?.phone || '');
+        console.log('✅ Member loaded - contact data:');
+        console.log('   From Wix Contacts:', { firstName: wixFirstName, lastName: wixLastName, phone: wixPhone });
+        console.log('   From stored:', storedContact);
+        console.log('   Final:', enrichedMember.contact);
 
         setCurrentMember(enrichedMember);
         setError(null);

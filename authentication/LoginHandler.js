@@ -24,9 +24,9 @@ export function LoginHandler(props) {
   const silentLogin = React.useCallback(
     async (sessionToken) => {
       try {
-        // Wix requires HTTPS redirect URIs - use Expo's auth proxy
-        const redirectUri = "https://auth.expo.io/@saipolice/grafton-liquor";
-        const data = wixCient.auth.generateOAuthData(redirectUri);
+        // Use hardcoded whitelisted URI - must match WebView callback check
+        const redirectUri = "graftonliquor://oauth-callback";
+        const data = wixCient.auth.generateOAuthData(redirectUri, redirectUri);
         console.log("Silent login redirect URI:", redirectUri);
         console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
         
@@ -45,23 +45,8 @@ export function LoginHandler(props) {
             "OAuth setup failed. Redirect URI: " + redirectUri + " Error: " + (authError?.message || JSON.stringify(authError)),
           );
         }
-        
-        const result = await fetch(authUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        console.log("Silent login fetch status:", result.status);
-        if (result.status === 400 || result.status === 403) {
-          const body = await result.text();
-          console.error("Silent login fetch failed body:", body);
-          setSessionLoading(false);
-          return Promise.reject(
-            "Redirect URI not whitelisted. Add: " + redirectUri,
-          );
-        }
 
+        // Let the invisible WebView handle the OAuth flow
         setLoginState({
           url: authUrl,
           data,
@@ -145,8 +130,9 @@ function LoginHandlerInvisibleWebview(props) {
         ]}
         containerStyle={{ display: "none" }}
         onShouldStartLoadWithRequest={(request) => {
+          // Check for hardcoded redirect URI used in silentLogin
           if (
-            request.url.startsWith(Linking.createURL("/oauth/wix/callback"))
+            request.url.startsWith("graftonliquor://oauth-callback")
           ) {
             const { code, state } = wixCient.auth.parseFromUrl(
               request.url,
