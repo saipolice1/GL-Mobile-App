@@ -24,7 +24,8 @@ export function LoginHandler(props) {
   const silentLogin = React.useCallback(
     async (sessionToken) => {
       try {
-        const redirectUri = "graftonliquor://oauth/wix/callback";
+        // Wix requires HTTPS redirect URIs - use Expo's auth proxy
+        const redirectUri = "https://auth.expo.io/@saipolice/grafton-liquor";
         const data = wixCient.auth.generateOAuthData(redirectUri);
         console.log("Silent login redirect URI:", redirectUri);
         console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");

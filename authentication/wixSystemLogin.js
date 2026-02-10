@@ -3,7 +3,8 @@ import * as SecureStore from "expo-secure-store";
 import { wixCient } from "./wixClient";
 
 const WIX_SESSION_KEY = "wixSession";
-const REDIRECT_URI = "graftonliquor://oauth/wix/callback";
+// Wix requires HTTPS redirect URIs - use Expo's auth proxy
+const REDIRECT_URI = "https://auth.expo.io/@saipolice/grafton-liquor";
 
 /**
  * Initialize auth session - call once at app startup
