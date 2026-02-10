@@ -24,25 +24,40 @@ export function LoginHandler(props) {
   const silentLogin = React.useCallback(
     async (sessionToken) => {
       try {
-        const data = wixCient.auth.generateOAuthData(
-          Linking.createURL("/oauth/wix/callback"),
-        );
-        console.log("Silent login redirect URI:", Linking.createURL("/oauth/wix/callback"));
-        const { authUrl } = await wixCient.auth.getAuthUrl(data, {
-          prompt: "none",
-          sessionToken,
-        });
+        const redirectUri = Linking.createURL("/oauth/wix/callback");
+        const data = wixCient.auth.generateOAuthData(redirectUri);
+        console.log("Silent login redirect URI:", redirectUri);
+        console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
+        
+        let authUrl;
+        try {
+          const authResult = await wixCient.auth.getAuthUrl(data, {
+            prompt: "none",
+            sessionToken,
+          });
+          authUrl = authResult.authUrl;
+          console.log("Silent login auth URL generated successfully");
+        } catch (authError) {
+          console.error("Silent login getAuthUrl failed:", JSON.stringify(authError, null, 2));
+          setSessionLoading(false);
+          return Promise.reject(
+            "OAuth setup failed. Redirect URI: " + redirectUri + " Error: " + (authError?.message || JSON.stringify(authError)),
+          );
+        }
+        
         const result = await fetch(authUrl, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
         });
+        console.log("Silent login fetch status:", result.status);
         if (result.status === 400 || result.status === 403) {
+          const body = await result.text();
+          console.error("Silent login fetch failed body:", body);
           setSessionLoading(false);
           return Promise.reject(
-            "Invalid redirect URI. Please add this URI to your Wix OAuth App: " +
-            Linking.createURL("/oauth/wix/callback"),
+            "Redirect URI not whitelisted. Add: " + redirectUri,
           );
         }
 

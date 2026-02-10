@@ -33,11 +33,21 @@ export async function loginWithSystemBrowser() {
     const redirectUri = getRedirectUri();
     console.log("Starting Wix OAuth login flow...");
     console.log("Using redirect URI:", redirectUri);
+    console.log("Client ID:", process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "(empty)");
 
     // 1) Generate oauthData and authUrl
     const oauthData = wixCient.auth.generateOAuthData(redirectUri);
-    const { authUrl } = await wixCient.auth.getAuthUrl(oauthData);
-    console.log("Auth URL generated:", authUrl);
+    console.log("OAuth data generated, requesting auth URL...");
+    
+    let authUrl;
+    try {
+      const authResult = await wixCient.auth.getAuthUrl(oauthData);
+      authUrl = authResult.authUrl;
+      console.log("Auth URL generated successfully");
+    } catch (authError) {
+      console.error("getAuthUrl failed:", JSON.stringify(authError, null, 2));
+      return { success: false, error: "OAuth setup failed: " + (authError?.message || JSON.stringify(authError)) };
+    }
 
     // 2) Use WebBrowser.openAuthSessionAsync 
     const result = await WebBrowser.openAuthSessionAsync(
