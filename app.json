@@ -18,9 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "nz.co.graftonliquor.app",
-      "config": {
-        "usesNonExemptEncryption": false
-      },
+      "usesAppleSignIn": true,
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -39,7 +37,8 @@
     "plugins": [
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {

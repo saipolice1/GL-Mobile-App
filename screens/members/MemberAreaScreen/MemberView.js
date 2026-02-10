@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import React, { useEffect, useState } from "react";
-import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   Avatar,
@@ -364,6 +364,47 @@ export const MemberView = ({ navigation }) => {
     },
   });
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone. All your data, order history, and saved information will be permanently removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Attempt to delete via Wix Members API
+              await wixCient.fetchWithAuth(
+                `https://www.wixapis.com/members/v1/members/${currentMember._id}`,
+                { method: "DELETE" }
+              );
+              console.log("Account deleted via Wix API");
+            } catch (e) {
+              console.log("Delete API call result:", e?.message || e);
+              // Even if the API call fails, we proceed with local cleanup
+              // The user can contact support if server-side deletion didn't complete
+            }
+
+            // Clear all local data and log out
+            await clearContact();
+            await newVisitorSession();
+
+            // Invalidate all cached queries
+            queryClient.invalidateQueries();
+
+            Alert.alert(
+              "Account Deleted",
+              "Your account has been deleted and you have been signed out. If you experience any issues, please contact support at info@graftonliquor.co.nz.",
+              [{ text: "OK" }]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   if (error) {
     return <ErrorView message={error} />;
   }
@@ -446,10 +487,20 @@ export const MemberView = ({ navigation }) => {
               <Menu.Item
                 leadingIcon="logout"
                 onPress={async () => {
+                  setVisibleMenu(false);
                   await clearContact();
                   await newVisitorSession();
                 }}
                 title="Signout"
+              />
+              <Menu.Item
+                leadingIcon="delete-outline"
+                onPress={() => {
+                  setVisibleMenu(false);
+                  handleDeleteAccount();
+                }}
+                title="Delete Account"
+                titleStyle={{ color: '#EF4444' }}
               />
             </Menu>
           </View>

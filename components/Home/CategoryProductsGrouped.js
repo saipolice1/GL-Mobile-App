@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Animated, ActivityIndicator } from 'react-native';
+import { IS_TABLET, rs } from '../../utils/responsive';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { WixMediaImage } from '../../WixMediaImage';
@@ -40,8 +41,8 @@ const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) =>
       <View style={styles.imageContainer}>
         <WixMediaImage
           media={product.media?.mainMedia?.image?.url}
-          width={100}
-          height={100}
+          width={rs(100)}
+          height={rs(100)}
         >
           {({ url }) => (
             <Image 
@@ -325,11 +326,11 @@ const styles = StyleSheet.create({
   },
   // Card styles
   card: {
-    width: 100,
+    width: rs(100),
   },
   imageContainer: {
-    width: 100,
-    height: 100,
+    width: rs(100),
+    height: rs(100),
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: theme.colors.surface,
@@ -417,14 +418,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   name: {
-    fontSize: 13,
+    fontSize: IS_TABLET ? 15 : 13,
     fontWeight: '500',
     color: theme.colors.text,
     marginTop: 8,
-    lineHeight: 16,
+    lineHeight: IS_TABLET ? 20 : 16,
   },
   price: {
-    fontSize: 14,
+    fontSize: IS_TABLET ? 16 : 14,
     fontWeight: '700',
     color: theme.colors.accent,
     marginTop: 4,

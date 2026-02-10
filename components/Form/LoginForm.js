@@ -1,10 +1,13 @@
-import React, { useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform } from "react-native";
 import { HelperText, TextInput } from "react-native-paper";
 import { useQueryClient } from "@tanstack/react-query";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useLoginHandler } from "../../authentication/LoginHandler";
 import { useWixSession } from "../../authentication/session";
 import { loginWithSystemBrowser } from "../../authentication/wixSystemLogin";
+import { performAppleSignIn, tryRegisterOnWix, isAppleSignInAvailable } from "../../authentication/appleAuth";
+import { wixCient } from "../../authentication/wixClient";
 import { DismissKeyboardSafeAreaView } from "../DismissKeyboardHOC/DismissKeyboardSafeAreaView";
 import Routes from "../../routes/routes";
 import { theme } from "../../styles/theme";
@@ -16,9 +19,18 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [systemLoginLoading, setSystemLoginLoading] = useState(false);
+  const [appleLoginLoading, setAppleLoginLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const { sessionLoading, setSession } = useWixSession();
   const { login } = useLoginHandler();
   const queryClient = useQueryClient();
+
+  // Check if Apple Sign-In is available on this device
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      isAppleSignInAvailable().then(setAppleAvailable);
+    }
+  }, []);
 
   const loginHandler = async () => {
     setError(false);
@@ -63,6 +75,37 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
       setError(true);
     } finally {
       setSystemLoginLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError(false);
+    setAppleLoginLoading(true);
+    try {
+      const { email, firstName, lastName, password } = await performAppleSignIn();
+
+      // Try to register on Wix (will fail silently if account already exists)
+      await tryRegisterOnWix(wixCient, email, password, firstName, lastName);
+
+      // Login using the existing LoginHandler flow (handles silentLogin + token exchange)
+      await login(email, password);
+
+      // Invalidate queries to refresh with new auth
+      queryClient.invalidateQueries({ queryKey: ["currentMember"] });
+      queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+
+      if (navigation) {
+        navigation.navigate(Routes.Home);
+      }
+    } catch (e) {
+      const msg = e?.toString() || "Apple Sign-In failed";
+      // Don't show error if user cancelled
+      if (!msg.includes("ERR_CANCELED") && !msg.includes("cancelled")) {
+        setErrorMessage(msg);
+        setError(true);
+      }
+    } finally {
+      setAppleLoginLoading(false);
     }
   };
 
@@ -143,6 +186,25 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
         <Text style={styles.secureLoginText}>
           You'll be redirected to our secure Grafton Liquor login (powered by Wix).
         </Text>
+
+        {/* Apple Sign-In — iOS only */}
+        {Platform.OS === "ios" && appleAvailable && (
+          <View style={styles.appleSignInContainer}>
+            {appleLoginLoading ? (
+              <View style={styles.appleLoadingContainer}>
+                <ActivityIndicator color={theme.colors.text} />
+              </View>
+            ) : (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={8}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            )}
+          </View>
+        )}
       </View>
     </DismissKeyboardSafeAreaView>
   );
@@ -249,5 +311,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 12,
     paddingHorizontal: 20,
+  },
+  appleSignInContainer: {
+    marginTop: 16,
+  },
+  appleButton: {
+    width: "100%",
+    height: 48,
+  },
+  appleLoadingContainer: {
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { IS_TABLET, rs } from '../../utils/responsive';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { WixMediaImage } from '../../WixMediaImage';
@@ -18,8 +19,8 @@ const QuickReorderCard = ({ product, onPress }) => {
     >
       <WixMediaImage
         media={product.media?.mainMedia?.image?.url}
-        width={80}
-        height={80}
+        width={rs(80)}
+        height={rs(80)}
       >
         {({ url }) => (
           <Image 
@@ -181,13 +182,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    width: 100,
+    width: rs(100),
     marginHorizontal: 4,
     position: 'relative',
   },
   image: {
-    width: 100,
-    height: 100,
+    width: rs(100),
+    height: rs(100),
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
   },
@@ -203,13 +204,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   name: {
-    fontSize: 12,
+    fontSize: IS_TABLET ? 14 : 12,
     color: theme.colors.text,
     marginTop: 6,
-    lineHeight: 16,
+    lineHeight: IS_TABLET ? 20 : 16,
   },
   price: {
-    fontSize: 13,
+    fontSize: IS_TABLET ? 15 : 13,
     fontWeight: '700',
     color: theme.colors.text,
     marginTop: 2,

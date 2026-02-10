@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions, TouchableOpacity, FlatList, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { IS_TABLET, rs } from '../../utils/responsive';
 import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
 import { WixMediaImage } from '../../WixMediaImage';
@@ -107,7 +108,7 @@ const ProductBannerItem = ({ product, onPress }) => {
         
         {/* Right side - Product image */}
         <View style={styles.imageContainer}>
-          <WixMediaImage media={imageUrl} width={140} height={160}>
+          <WixMediaImage media={imageUrl} width={rs(140)} height={rs(160)}>
             {({ url }) => (
               <Image 
                 source={{ uri: url }} 
@@ -418,11 +419,11 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   productName: {
-    fontSize: 16,
+    fontSize: IS_TABLET ? 20 : 16,
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: 8,
-    lineHeight: 22,
+    lineHeight: IS_TABLET ? 28 : 22,
   },
   priceContainer: {
     flexDirection: 'row',
@@ -431,7 +432,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   productPrice: {
-    fontSize: 20,
+    fontSize: IS_TABLET ? 24 : 20,
     fontWeight: '700',
     color: theme.colors.accent,
   },
@@ -451,14 +452,14 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
   },
   imageContainer: {
-    width: 140,
-    height: 160,
+    width: rs(140),
+    height: rs(160),
     justifyContent: 'center',
     alignItems: 'center',
   },
   productImage: {
-    width: 130,
-    height: 150,
+    width: rs(130),
+    height: rs(150),
   },
   pagination: {
     flexDirection: 'row',

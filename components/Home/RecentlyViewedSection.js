@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { IS_TABLET, rs } from '../../utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { WixMediaImage } from '../../WixMediaImage';
 import { getRecentlyViewed } from '../../utils/recentlyViewed';
@@ -37,8 +38,8 @@ const RecentlyViewedCard = ({ product, onPress, trendingProductIds = [] }) => {
       <View style={styles.imageContainer}>
         <WixMediaImage
           media={product.media?.mainMedia?.image?.url}
-          width={80}
-          height={80}
+          width={rs(80)}
+          height={rs(80)}
         >
           {({ url }) => (
             <Image 
@@ -140,15 +141,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   card: {
-    width: 100,
+    width: rs(100),
     marginHorizontal: 4,
   },
   imageContainer: {
     position: 'relative',
   },
   image: {
-    width: 100,
-    height: 100,
+    width: rs(100),
+    height: rs(100),
     borderRadius: 8,
     backgroundColor: '#F5F5F5',
   },
@@ -187,13 +188,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   name: {
-    fontSize: 12,
+    fontSize: IS_TABLET ? 14 : 12,
     color: theme.colors.text,
     marginTop: 6,
-    lineHeight: 16,
+    lineHeight: IS_TABLET ? 20 : 16,
   },
   price: {
-    fontSize: 13,
+    fontSize: IS_TABLET ? 15 : 13,
     fontWeight: '700',
     color: theme.colors.text,
     marginTop: 2,
