@@ -23,30 +23,40 @@ export function LoginHandler(props) {
 
   const silentLogin = React.useCallback(
     async (sessionToken) => {
-      const data = wixCient.auth.generateOAuthData(
-        Linking.createURL("/oauth/wix/callback"),
-      );
-      const { authUrl } = await wixCient.auth.getAuthUrl(data, {
-        prompt: "none",
-        sessionToken,
-      });
-      const result = await fetch(authUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (result.status === 400) {
+      try {
+        const data = wixCient.auth.generateOAuthData(
+          Linking.createURL("/oauth/wix/callback"),
+        );
+        console.log("Silent login redirect URI:", Linking.createURL("/oauth/wix/callback"));
+        const { authUrl } = await wixCient.auth.getAuthUrl(data, {
+          prompt: "none",
+          sessionToken,
+        });
+        const result = await fetch(authUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (result.status === 400 || result.status === 403) {
+          setSessionLoading(false);
+          return Promise.reject(
+            "Invalid redirect URI. Please add this URI to your Wix OAuth App: " +
+            Linking.createURL("/oauth/wix/callback"),
+          );
+        }
+
+        setLoginState({
+          url: authUrl,
+          data,
+        });
+      } catch (error) {
+        console.error("Silent login error:", error);
         setSessionLoading(false);
         return Promise.reject(
-          "Invalid redirect URI. Please add an allowed URI to your Oauth App",
+          "Login failed: " + (error?.message || error?.toString() || "Unknown error"),
         );
       }
-
-      setLoginState({
-        url: authUrl,
-        data,
-      });
     },
     [wixCient.auth, setSessionLoading],
   );
