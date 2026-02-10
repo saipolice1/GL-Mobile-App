@@ -290,7 +290,9 @@ export const MemberView = ({ navigation }) => {
           try {
             console.log('Fetching contact details for contactId:', member.contactId);
             const contactResponse = await wixCient.contacts.getContact(member.contactId);
-            console.log('Contact from Contacts API:', JSON.stringify(contactResponse, null, 2));
+            console.log('=== RAW CONTACT FROM WIX ===');
+            console.log(JSON.stringify(contactResponse, null, 2));
+            console.log('============================');
             
             if (contactResponse?.contact) {
               const c = contactResponse.contact;
@@ -299,8 +301,15 @@ export const MemberView = ({ navigation }) => {
               wixPhone = c.info?.phones?.[0]?.phone || '';
             }
           } catch (contactErr) {
-            console.log('Could not fetch contact (may need permissions):', contactErr?.message || contactErr);
+            console.error('=== ERROR FETCHING CONTACT FROM WIX ===');
+            console.error('Error type:', contactErr?.constructor?.name);
+            console.error('Error message:', contactErr?.message);
+            console.error('Error details:', JSON.stringify(contactErr?.details || contactErr, null, 2));
+            console.error('=======================================');
+            // If it's a 403, permissions aren't enabled in Wix Headless settings
           }
+        } else {
+          console.log('No contactId on member - cannot fetch contact details');
         }
         
         // Load stored contact as fallback

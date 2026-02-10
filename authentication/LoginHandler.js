@@ -113,11 +113,12 @@ export function LoginHandler(props) {
 }
 
 function LoginHandlerInvisibleWebview(props) {
-  const { setSession } = useWixSession();
+  const { setSession, setSessionLoading } = useWixSession();
 
   if (!props.loginState) {
     return null;
   } else {
+    console.log('WebView: Rendering with URL:', props.loginState.url?.substring(0, 80));
     return (
       <WebView
         source={{ uri: props.loginState.url }}
@@ -128,12 +129,32 @@ function LoginHandlerInvisibleWebview(props) {
           "graftonliquor://*",
           "wixmobileheadless://*",
         ]}
-        containerStyle={{ display: "none" }}
+        // Use position absolute and offscreen instead of display:none
+        // display:none can prevent WebView from loading on iOS
+        style={{ position: 'absolute', top: -10000, left: 0, width: 1, height: 1 }}
+        onLoadStart={(syntheticEvent) => {
+          console.log('WebView: Load started');
+        }}
+        onLoadEnd={(syntheticEvent) => {
+          console.log('WebView: Load ended');
+        }}
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error('WebView error:', nativeEvent);
+          setSessionLoading(false);
+          props.setLoginState(null);
+        }}
+        onHttpError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error('WebView HTTP error:', nativeEvent.statusCode, nativeEvent.url);
+        }}
         onShouldStartLoadWithRequest={(request) => {
+          console.log('WebView navigation:', request.url.substring(0, 100));
           // Check for hardcoded redirect URI used in silentLogin
           if (
             request.url.startsWith("graftonliquor://oauth-callback")
           ) {
+            console.log('WebView: Caught callback redirect, exchanging code for tokens...');
             const { code, state } = wixCient.auth.parseFromUrl(
               request.url,
               props.loginState.data,
@@ -141,7 +162,13 @@ function LoginHandlerInvisibleWebview(props) {
             wixCient.auth
               .getMemberTokens(code, state, props.loginState.data)
               .then((tokens) => {
+                console.log('WebView: Tokens received, setting session...');
                 setSession(tokens);
+                props.setLoginState(null);
+              })
+              .catch((err) => {
+                console.error('WebView: getMemberTokens failed:', err);
+                setSessionLoading(false);
                 props.setLoginState(null);
               });
             return false;
