@@ -9,7 +9,7 @@ const WIX_SESSION_KEY = "wixSession";
 function getRedirectUri() {
   const uri = makeRedirectUri({
     scheme: "graftonliquor",
-    path: "oauth-callback",
+    path: "oauth/wix/callback",
     preferLocalhost: false,
   });
   console.log("OAuth redirect URI:", uri);
