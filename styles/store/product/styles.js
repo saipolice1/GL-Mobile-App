@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { theme } from "../../theme";
+import { IS_TABLET, rs } from "../../utils/responsive";
 
 export const styles = StyleSheet.create({
   backContainer: {
@@ -28,7 +29,7 @@ export const styles = StyleSheet.create({
   },
   cardImage: {
     marginHorizontal: 20,
-    height: 400,
+    height: IS_TABLET ? 500 : 400,
     borderRadius: 12,
     backgroundColor: theme.colors.surfaceVariant,
   },

@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { WixMediaImage } from '../../WixMediaImage';
 import { wixCient } from '../../authentication/wixClient';
 import { theme } from '../../styles/theme';
+import { IS_TABLET, rs } from '../../utils/responsive';
 import { addToRecentlyViewed, getRecentlyViewed } from '../../utils/recentlyViewed';
 import { isFavorite, toggleFavorite, subscribeFavorites } from '../../services/favorites';
 import { trackAddToCart, trackProductView } from '../../services/visitorTracking';
@@ -759,20 +760,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   favoriteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: rs(36, 1.2),
+    height: rs(36, 1.2),
+    borderRadius: rs(18, 1.2),
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 44,
+    minHeight: 44,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: rs(36, 1.2),
+    height: rs(36, 1.2),
+    borderRadius: rs(18, 1.2),
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 44,
+    minHeight: 44,
   },
   scrollView: {
     flex: 1,
@@ -924,7 +929,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   similarCard: {
-    width: 100,
+    width: rs(100, 1.4),
     marginRight: 12,
   },
   similarImageContainer: {
@@ -932,8 +937,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   similarImage: {
-    width: 80,
-    height: 80,
+    width: rs(80, 1.4),
+    height: rs(80, 1.4),
     borderRadius: 8,
     backgroundColor: theme.colors.surface,
   },
@@ -1023,10 +1028,12 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   similarQuantityButton: {
-    width: 28,
-    height: 28,
+    width: rs(28, 1.5),
+    height: rs(28, 1.5),
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: IS_TABLET ? 44 : 28,
+    minHeight: IS_TABLET ? 44 : 28,
   },
   similarQuantityButtonDisabled: {
     opacity: 0.4,

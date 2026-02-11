@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { IS_TABLET, rs } from '../../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
 const CATEGORY_WIDTH = 85;
@@ -406,9 +407,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: rs(28, 1.5),
+    height: rs(28, 1.5),
+    borderRadius: rs(14, 1.5),
     backgroundColor: theme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
@@ -417,6 +418,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3.84,
     elevation: 5,
+    minWidth: IS_TABLET ? 44 : 28,
+    minHeight: IS_TABLET ? 44 : 28,
   },
   productInfo: {
     paddingTop: 6,

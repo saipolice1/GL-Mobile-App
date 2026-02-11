@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { theme } from "../theme";
+import { IS_TABLET, rs } from "../utils/responsive";
 
 export const styles = StyleSheet.create({
   container: {
@@ -32,7 +33,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   memberHeader: {
-    height: 80,
+    minHeight: rs(80, 1.2),
     width: "100%",
     position: "absolute",
     top: 0,
@@ -50,9 +51,9 @@ export const styles = StyleSheet.create({
     paddingTop: 50,
   },
   memberImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 100,
+    width: rs(100),
+    height: rs(100),
+    borderRadius: rs(100),
     borderWidth: 2,
     borderColor: theme.colors.gold,
   },
@@ -144,14 +145,14 @@ export const styles = StyleSheet.create({
   },
   accountInput: {
     width: "100%",
-    height: 40,
+    minHeight: rs(40, 1.3),
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.gold + "60",
     borderRadius: 8,
-    padding: 10,
+    padding: rs(10, 1.3),
     fontFamily: "Fraunces-Regular",
-    fontSize: 16,
+    fontSize: rs(16, 1.1),
     color: theme.colors.text,
   },
 });

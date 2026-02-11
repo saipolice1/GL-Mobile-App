@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, Dimensions, TouchableOpacity, FlatList, Animated } from 'react-native';
+import { View, Text, StyleSheet, Image, Dimensions, TouchableOpacity, FlatList, Animated, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { IS_TABLET, rs } from '../../utils/responsive';
@@ -9,8 +9,8 @@ import { WixMediaImage } from '../../WixMediaImage';
 
 import { CATEGORIES_DATA } from './CategoryBarWithIcons';
 
-const { width } = Dimensions.get('window');
-const BANNER_HEIGHT = 200;
+const { width: INITIAL_WIDTH } = Dimensions.get('window');
+const BANNER_HEIGHT = IS_TABLET ? 240 : 200;
 
 // Helper to check if product is in stock
 const isProductInStock = (product) => {
@@ -68,7 +68,7 @@ const findMatchingCollection = (collections, selectedCategory) => {
   return { collection: null, collectionIds: [] };
 };
 
-const ProductBannerItem = ({ product, onPress }) => {
+const ProductBannerItem = ({ product, onPress, bannerWidth }) => {
   const price = product?.priceData?.formatted?.price || product?.price?.formatted?.price || '';
   const originalPrice = product?.priceData?.formatted?.discountedPrice !== product?.priceData?.formatted?.price 
     ? product?.priceData?.formatted?.discountedPrice 
@@ -81,7 +81,7 @@ const ProductBannerItem = ({ product, onPress }) => {
   
   return (
     <TouchableOpacity 
-      style={styles.bannerItem}
+      style={[styles.bannerItem, { width: bannerWidth }]}
       onPress={() => onPress(product)}
       activeOpacity={0.95}
     >
@@ -127,6 +127,8 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
   const flatListRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const { width } = useWindowDimensions();
+  const bannerWidth = width - 32;
 
   // Fetch products relevant to selected category - ONLY IN STOCK ITEMS
   const { data: featuredProducts = [], isFetching } = useQuery({
@@ -230,7 +232,7 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
 
   const handleScroll = (event) => {
     const contentOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffset / (width - 32));
+    const index = Math.round(contentOffset / bannerWidth);
     if (index !== currentIndex && index >= 0 && index < featuredProducts.length) {
       setCurrentIndex(index);
     }
@@ -244,7 +246,7 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
 
   // Loading placeholder banner
   const LoadingBanner = () => (
-    <View style={styles.bannerItem}>
+    <View style={[styles.bannerItem, { width: bannerWidth }]}>
       <View style={styles.bannerContent}>
         <View style={styles.productInfo}>
           <View style={styles.loadingBadge} />
@@ -289,15 +291,15 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
         keyExtractor={(item) => item._id}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        snapToInterval={width - 32}
+        snapToInterval={bannerWidth}
         decelerationRate="fast"
         contentContainerStyle={styles.flatListContent}
         renderItem={({ item }) => (
-          <ProductBannerItem product={item} onPress={handleProductPress} />
+          <ProductBannerItem product={item} onPress={handleProductPress} bannerWidth={bannerWidth} />
         )}
         getItemLayout={(data, index) => ({
-          length: width - 32,
-          offset: (width - 32) * index,
+          length: bannerWidth,
+          offset: bannerWidth * index,
           index,
         })}
       />
@@ -329,7 +331,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   bannerItem: {
-    width: width - 32,
     height: BANNER_HEIGHT,
     borderRadius: 16,
     overflow: 'hidden',

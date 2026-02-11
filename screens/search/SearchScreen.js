@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { theme } from '../../styles/theme';
+import { IS_TABLET, rs } from '../../utils/responsive';
 import { wixCient } from '../../authentication/wixClient';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
 import { CATEGORIES_DATA } from '../../components/Home/CategoryBarWithIcons';
@@ -738,14 +739,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: rs(20, 1.8),
+    height: rs(20, 1.8),
+    borderRadius: rs(10, 1.8),
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
+    minWidth: IS_TABLET ? 44 : 20,
+    minHeight: IS_TABLET ? 44 : 20,
   },
   productInfo: {
     paddingTop: 4,

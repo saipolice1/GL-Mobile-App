@@ -4,6 +4,7 @@ import InputSpinner from "react-native-input-spinner";
 import { WixMediaImage } from "../../WixMediaImage";
 import { ActivityIndicator, IconButton } from "react-native-paper";
 import { theme } from "../../styles/theme";
+import { IS_TABLET, rs } from "../../utils/responsive";
 
 export const CartListItem = ({
   image,
@@ -21,7 +22,7 @@ export const CartListItem = ({
   return (
     <View style={{ width: "100%", backgroundColor: theme.colors.primary }}>
       <View style={styles.card}>
-        <WixMediaImage media={image} width={80} height={110}>
+        <WixMediaImage media={image} width={rs(80)} height={rs(110)}>
           {({ url }) => <Image source={{ uri: url }} style={styles.image} />}
         </WixMediaImage>
 
@@ -81,15 +82,15 @@ export const CartListItem = ({
           )}
           <InputSpinner
             value={newQuantity}
-            width={100}
-            height={40}
+            width={rs(100)}
+            height={rs(40)}
             onChange={(quantity) => {
               setNewQuantity(quantity);
               quantityHandlerChange(quantity);
             }}
             rounded={false}
             showBorder={true}
-            buttonStyle={{ width: 30, backgroundColor: theme.colors.surface }}
+            buttonStyle={{ width: rs(30), minWidth: IS_TABLET ? 44 : 30, backgroundColor: theme.colors.surface }}
             buttonTextColor={theme.colors.gold}
             textColor={theme.colors.text}
             min={1}
@@ -123,8 +124,8 @@ const styles = StyleSheet.create({
     right: 0,
   },
   image: {
-    width: 80,
-    height: 110,
+    width: rs(80),
+    height: rs(110),
     resizeMode: "cover",
     borderColor: theme.colors.gold + "40",
     borderWidth: 1,
@@ -136,12 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   name: {
-    fontSize: 18,
-    maxWidth: "75%",
+    fontSize: rs(18, 1.2),
+    flexShrink: 1,
     color: theme.colors.text,
   },
   price: {
-    fontSize: 16,
+    fontSize: rs(16, 1.2),
     color: theme.colors.gold,
     fontWeight: "bold",
   },
@@ -150,8 +151,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   input: {
-    height: 30,
-    width: 50,
+    height: rs(30),
+    width: rs(50),
     borderColor: theme.colors.gold + "60",
     borderWidth: 1,
     marginLeft: 5,

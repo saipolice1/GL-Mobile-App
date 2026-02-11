@@ -27,6 +27,7 @@ import { CheckoutScreen } from "../checkout/CheckoutScreen";
 import { CheckoutThankYouScreen } from "../checkout/CheckoutThankYouScreen";
 import { ProductScreen } from "../product/ProductScreen";
 import { theme } from "../../../styles/theme";
+import { IS_TABLET, rs } from "../../../utils/responsive";
 
 const Stack = createNativeStackNavigator();
 
@@ -752,8 +753,8 @@ const cartStyles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   itemImage: {
-    width: 80,
-    height: 80,
+    width: rs(80, 1.3),
+    height: rs(80, 1.3),
     borderRadius: 8,
     backgroundColor: theme.colors.border,
   },

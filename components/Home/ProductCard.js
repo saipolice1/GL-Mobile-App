@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-
-const { width } = Dimensions.get('window');
-// 3 columns with padding: (screenWidth - 32 horizontal padding - 16 gap total) / 3
-const CARD_WIDTH = (width - 48) / 3;
+import { IS_TABLET, rs } from '../../utils/responsive';
 
 export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false, trendingProductIds = [] }) => {
+  const { width } = useWindowDimensions();
+  const numColumns = IS_TABLET ? 4 : 3;
+  const CARD_WIDTH = (width - 16 * (numColumns + 1)) / numColumns;
   const imageUrl = product?.media?.mainMedia?.image?.url 
     || product?.media?.items?.[0]?.image?.url
     || 'https://via.placeholder.com/200';
@@ -49,7 +49,7 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
 
   return (
     <TouchableOpacity 
-      style={styles.container} 
+      style={[styles.container, { width: CARD_WIDTH }]} 
       onPress={() => onPress?.(product)}
       activeOpacity={0.9}
     >
@@ -105,7 +105,6 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
 
 const styles = StyleSheet.create({
   container: {
-    width: CARD_WIDTH,
     marginBottom: 16,
   },
   imageContainer: {
@@ -180,9 +179,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     right: 6,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: rs(26, 1.5),
+    height: rs(26, 1.5),
+    borderRadius: rs(13, 1.5),
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -193,20 +192,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    // Ensure minimum 44px hit area on iPad
+    minWidth: IS_TABLET ? 44 : 26,
+    minHeight: IS_TABLET ? 44 : 26,
   },
   info: {
     paddingTop: 6,
     paddingHorizontal: 2,
   },
   name: {
-    fontSize: 12,
+    fontSize: rs(12),
     fontWeight: '500',
     color: theme.colors.text,
-    lineHeight: 16,
+    lineHeight: rs(16),
     marginBottom: 3,
+    flexShrink: 1,
   },
   price: {
-    fontSize: 12,
+    fontSize: rs(12),
     fontWeight: '600',
     color: theme.colors.text,
   },

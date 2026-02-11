@@ -7,14 +7,19 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { WixMediaImage } from "../../WixMediaImage";
 import { memo, useMemo } from "react";
 import { theme } from "../../styles/theme";
+import { IS_TABLET } from "../../utils/responsive";
 
-const screenWidth = Dimensions.get("window").width;
+const NUM_COLUMNS = IS_TABLET ? 3 : 2;
 
 const ProductCard = ({ item, onPress }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const imageWidth = screenWidth / NUM_COLUMNS - 20;
+  const imageHeight = imageWidth * 1.1;
   // Check stock and badge status
   const stockQuantity = item?.stock?.quantity;
   const inStock = item?.stock?.inStock !== false && item?.stock?.inventoryStatus !== 'OUT_OF_STOCK';
@@ -38,8 +43,8 @@ const ProductCard = ({ item, onPress }) => {
           <View style={styles.imageWrapper}>
             <WixMediaImage
               media={item.media.mainMedia.image.url}
-              width={screenWidth / 2 - 20}
-              height={screenWidth / 2}
+              width={imageWidth}
+              height={imageHeight}
             >
               {({ url }) => {
                 return (
@@ -47,8 +52,8 @@ const ProductCard = ({ item, onPress }) => {
                     style={[
                       styles.image,
                       {
-                        width: screenWidth / 2 - 20,
-                        height: screenWidth / 2,
+                        width: imageWidth,
+                        height: imageHeight,
                       },
                       isOutOfStock && styles.imageGrayedOut,
                     ]}
@@ -97,7 +102,7 @@ export const ProductsGrid = memo(({ data, scrollOffsetY, onPress }) => {
     <FlatList
       scrollEventThrottle={16}
       data={data}
-      numColumns={2}
+      numColumns={NUM_COLUMNS}
       keyExtractor={(item, index) => index.toString()}
       onScroll={Animated.event(
         [{ nativeEvent: { contentOffset: { y: scrollOffsetY } } }],

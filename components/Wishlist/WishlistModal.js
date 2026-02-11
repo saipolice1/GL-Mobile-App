@@ -18,6 +18,7 @@ import {
   getFavoritesCount 
 } from '../../services/favorites';
 import { EmbeddedProductModal } from '../ProductModal/EmbeddedProductModal';
+import { IS_TABLET, rs } from '../../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -319,12 +320,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: rs(40, 1.2),
+    height: rs(40, 1.2),
+    borderRadius: rs(20, 1.2),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(229, 57, 53, 0.1)',
+    minWidth: 44,
+    minHeight: 44,
   },
   headerTitle: {
     fontSize: 20,
@@ -338,6 +341,10 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gridContent: {
     padding: HORIZONTAL_PADDING,
@@ -431,9 +438,9 @@ const styles = StyleSheet.create({
     right: 6,
   },
   addButton: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: rs(22, 1.8),
+    height: rs(22, 1.8),
+    borderRadius: rs(11, 1.8),
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -444,6 +451,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    minWidth: IS_TABLET ? 44 : 22,
+    minHeight: IS_TABLET ? 44 : 22,
   },
   cardName: {
     fontSize: 11,
