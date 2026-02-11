@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center",
+    paddingTop: 80,
   },
   logoArea: {
     alignItems: "center",
