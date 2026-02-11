@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Keyboard, TouchableWithoutFeedback } from "react-native";
 import { HelperText, TextInput } from "react-native-paper";
 import { useQueryClient } from "@tanstack/react-query";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -8,7 +8,7 @@ import { useWixSession } from "../../authentication/session";
 import { loginWithSystemBrowser } from "../../authentication/wixSystemLogin";
 import { performAppleSignIn, tryRegisterOnWix, isAppleSignInAvailable } from "../../authentication/appleAuth";
 import { wixCient } from "../../authentication/wixClient";
-import { DismissKeyboardSafeAreaView } from "../DismissKeyboardHOC/DismissKeyboardSafeAreaView";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Routes from "../../routes/routes";
 import { theme } from "../../styles/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -157,9 +157,23 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
   };
 
   return (
-    <DismissKeyboardSafeAreaView style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <View style={styles.inputView}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.logoArea}>
+              <Text style={styles.title}>Login</Text>
+            </View>
+            <View style={styles.inputView}>
         <TextInput
           theme={{ colors: { primary: theme.colors.accent } }}
           style={styles.input}
@@ -253,22 +267,34 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
           You'll be redirected to our secure Grafton Liquor login (powered by Wix).
         </Text>
       </View>
-    </DismissKeyboardSafeAreaView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: "center",
-    justifyContent: "center",
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingBottom: 30,
+  },
+  logoArea: {
+    alignItems: "center",
   },
   title: {
     fontSize: 32,
     fontWeight: "700",
     textAlign: "center",
-    paddingVertical: 40,
+    paddingVertical: 24,
     color: theme.colors.text,
     letterSpacing: 1,
   },
