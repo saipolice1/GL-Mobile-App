@@ -197,6 +197,18 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
     },
   });
 
+  // Build looped data: [last, ...items, first] for infinite scroll
+  const loopedData = React.useMemo(() => {
+    if (featuredProducts.length < 2) return featuredProducts;
+    return [
+      { ...featuredProducts[featuredProducts.length - 1], _loopKey: 'clone-last' },
+      ...featuredProducts,
+      { ...featuredProducts[0], _loopKey: 'clone-first' },
+    ];
+  }, [featuredProducts]);
+
+  const isAutoScrolling = React.useRef(false);
+
   // Smooth fade animation when category changes
   useEffect(() => {
     // Fade out
@@ -205,9 +217,13 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
       duration: 150,
       useNativeDriver: true,
     }).start(() => {
-      // Reset carousel position
+      // Reset carousel position to first real item (index 1 in looped data)
       setCurrentIndex(0);
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      if (featuredProducts.length >= 2) {
+        flatListRef.current?.scrollToOffset({ offset: bannerWidth, animated: false });
+      } else {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }
       // Fade back in
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -219,22 +235,62 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
 
   // Auto scroll
   useEffect(() => {
-    if (featuredProducts.length === 0) return;
+    if (featuredProducts.length < 2) return;
     
     const interval = setInterval(() => {
-      const nextIndex = (currentIndex + 1) % featuredProducts.length;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentIndex(nextIndex);
+      isAutoScrolling.current = true;
+      // currentIndex is 0-based real index; in looped data the real items start at offset 1
+      const loopedIndex = currentIndex + 1; // current position in looped array
+      const nextLoopedIndex = loopedIndex + 1;
+      flatListRef.current?.scrollToOffset({ offset: nextLoopedIndex * bannerWidth, animated: true });
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [currentIndex, featuredProducts.length]);
+  }, [currentIndex, featuredProducts.length, bannerWidth]);
+
+  // Initialize scroll position to first real item (index 1 in looped data)
+  useEffect(() => {
+    if (featuredProducts.length >= 2) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: bannerWidth, animated: false });
+      }, 50);
+    }
+  }, [featuredProducts.length, bannerWidth]);
 
   const handleScroll = (event) => {
     const contentOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffset / bannerWidth);
-    if (index !== currentIndex && index >= 0 && index < featuredProducts.length) {
-      setCurrentIndex(index);
+    if (featuredProducts.length < 2) {
+      const index = Math.round(contentOffset / bannerWidth);
+      if (index !== currentIndex && index >= 0 && index < featuredProducts.length) {
+        setCurrentIndex(index);
+      }
+      return;
+    }
+
+    const loopedIndex = Math.round(contentOffset / bannerWidth);
+    const totalReal = featuredProducts.length;
+
+    if (loopedIndex === 0) {
+      // Scrolled to the prepended clone (last item clone) — jump to real last item
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: totalReal * bannerWidth, animated: false });
+        isAutoScrolling.current = false;
+      }, 300);
+      setCurrentIndex(totalReal - 1);
+    } else if (loopedIndex === totalReal + 1) {
+      // Scrolled to the appended clone (first item clone) — jump to real first item
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: bannerWidth, animated: false });
+        isAutoScrolling.current = false;
+      }, 300);
+      setCurrentIndex(0);
+    } else {
+      // Normal real item
+      const realIndex = loopedIndex - 1;
+      if (realIndex !== currentIndex && realIndex >= 0 && realIndex < totalReal) {
+        setCurrentIndex(realIndex);
+      }
+      isAutoScrolling.current = false;
     }
   };
 
@@ -284,11 +340,11 @@ export const HeroBanner = ({ onProductPress, selectedCategory = 'trending', coll
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <FlatList
         ref={flatListRef}
-        data={featuredProducts}
+        data={loopedData}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item, index) => item._loopKey || item._id}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         snapToInterval={bannerWidth}
