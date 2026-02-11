@@ -20,6 +20,7 @@ export function useLoginHandler() {
 export function LoginHandler(props) {
   const { session, setSessionLoading } = useWixSession();
   const [loginState, setLoginState] = React.useState(null);
+  const loginResolverRef = React.useRef(null);
 
   const silentLogin = React.useCallback(
     async (sessionToken) => {
@@ -41,9 +42,13 @@ export function LoginHandler(props) {
         } catch (authError) {
           console.error("Silent login getAuthUrl failed:", JSON.stringify(authError, null, 2));
           setSessionLoading(false);
-          return Promise.reject(
-            "OAuth setup failed. Redirect URI: " + redirectUri + " Error: " + (authError?.message || JSON.stringify(authError)),
-          );
+          if (loginResolverRef.current) {
+            loginResolverRef.current.reject(
+              "OAuth setup failed. Redirect URI: " + redirectUri + " Error: " + (authError?.message || JSON.stringify(authError)),
+            );
+            loginResolverRef.current = null;
+          }
+          return;
         }
 
         // Let the invisible WebView handle the OAuth flow
@@ -54,9 +59,12 @@ export function LoginHandler(props) {
       } catch (error) {
         console.error("Silent login error:", error);
         setSessionLoading(false);
-        return Promise.reject(
-          "Login failed: " + (error?.message || error?.toString() || "Unknown error"),
-        );
+        if (loginResolverRef.current) {
+          loginResolverRef.current.reject(
+            "Login failed: " + (error?.message || error?.toString() || "Unknown error"),
+          );
+          loginResolverRef.current = null;
+        }
       }
     },
     [wixCient.auth, setSessionLoading],
@@ -80,7 +88,20 @@ export function LoginHandler(props) {
         }
         return Promise.reject("An error occurred!");
       }
-      await silentLogin(result.data.sessionToken);
+      // Create a promise that resolves when the WebView completes the OAuth flow
+      const loginPromise = new Promise((resolve, reject) => {
+        loginResolverRef.current = { resolve, reject };
+        // Timeout after 15s to avoid hanging forever
+        setTimeout(() => {
+          if (loginResolverRef.current) {
+            loginResolverRef.current.resolve(); // Resolve anyway so navigation proceeds
+            loginResolverRef.current = null;
+          }
+        }, 15000);
+      });
+      // silentLogin sets up the WebView — errors are propagated through loginResolverRef
+      silentLogin(result.data.sessionToken);
+      return loginPromise;
     },
     [wixCient.auth, setSessionLoading],
   );
@@ -106,6 +127,7 @@ export function LoginHandler(props) {
       <LoginHandlerInvisibleWebview
         loginState={loginState}
         setLoginState={setLoginState}
+        loginResolverRef={loginResolverRef}
       />
       {props.children}
     </LoginHandlerContext.Provider>
@@ -143,6 +165,10 @@ function LoginHandlerInvisibleWebview(props) {
           console.error('WebView error:', nativeEvent);
           setSessionLoading(false);
           props.setLoginState(null);
+          if (props.loginResolverRef?.current) {
+            props.loginResolverRef.current.reject('WebView error');
+            props.loginResolverRef.current = null;
+          }
         }}
         onHttpError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
@@ -165,11 +191,20 @@ function LoginHandlerInvisibleWebview(props) {
                 console.log('WebView: Tokens received, setting session...');
                 setSession(tokens);
                 props.setLoginState(null);
+                // Resolve the login promise so navigation can proceed
+                if (props.loginResolverRef?.current) {
+                  props.loginResolverRef.current.resolve();
+                  props.loginResolverRef.current = null;
+                }
               })
               .catch((err) => {
                 console.error('WebView: getMemberTokens failed:', err);
                 setSessionLoading(false);
                 props.setLoginState(null);
+                if (props.loginResolverRef?.current) {
+                  props.loginResolverRef.current.reject(err?.message || 'Token exchange failed');
+                  props.loginResolverRef.current = null;
+                }
               });
             return false;
           }
