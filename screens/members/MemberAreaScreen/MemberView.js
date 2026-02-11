@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import React, { useEffect, useState } from "react";
-import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform, Alert, Modal } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   Avatar,
@@ -259,6 +259,9 @@ export const MemberView = ({ navigation }) => {
   const [currentMember, setCurrentMember] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch current member on mount and when session changes
   // Contact details come from: 1) Members API (getCurrentMember with FULL fieldsets), 2) AsyncStorage fallback
@@ -375,44 +378,67 @@ export const MemberView = ({ navigation }) => {
   });
 
   const handleDeleteAccount = () => {
+    // Step 1: Initial confirmation via Alert
     Alert.alert(
       "Delete Account",
       "Are you sure you want to delete your account? This action cannot be undone. All your data, order history, and saved information will be permanently removed.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete Account",
+          text: "Continue",
           style: "destructive",
-          onPress: async () => {
-            try {
-              // Attempt to delete via Wix Members API
-              await wixCient.fetchWithAuth(
-                `https://www.wixapis.com/members/v1/members/${currentMember._id}`,
-                { method: "DELETE" }
-              );
-              console.log("Account deleted via Wix API");
-            } catch (e) {
-              console.log("Delete API call result:", e?.message || e);
-              // Even if the API call fails, we proceed with local cleanup
-              // The user can contact support if server-side deletion didn't complete
-            }
-
-            // Clear all local data and log out
-            await clearContact();
-            await newVisitorSession();
-
-            // Invalidate all cached queries
-            queryClient.invalidateQueries();
-
-            Alert.alert(
-              "Account Deleted",
-              "Your account has been deleted and you have been signed out. If you experience any issues, please contact support at info@graftonliquor.co.nz.",
-              [{ text: "OK" }]
-            );
+          onPress: () => {
+            // Step 2: Show modal for typing DELETE
+            setDeleteConfirmText('');
+            setShowDeleteModal(true);
           },
         },
       ]
     );
+  };
+
+  const executeAccountDeletion = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+      Alert.alert('Cancelled', 'You did not type "DELETE". Your account was not deleted.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      console.warn('[DeleteAccount] Initiating account deletion via members.deleteMyMember()');
+      // Use the SDK deleteMyMember — calls DELETE /members/v1/members/my
+      await wixCient.members.deleteMyMember();
+      console.warn('[DeleteAccount] ✅ Account deleted successfully via Wix Members API');
+
+      setShowDeleteModal(false);
+
+      // Only on success: clear local data and log out
+      await clearContact();
+      queryClient.invalidateQueries();
+      await newVisitorSession();
+
+      Alert.alert(
+        'Account Deleted',
+        'Your account has been permanently deleted and you have been signed out.',
+        [{ text: 'OK' }]
+      );
+    } catch (e) {
+      // Deletion failed — do NOT claim success, do NOT log out
+      setShowDeleteModal(false);
+      console.warn('[DeleteAccount] ❌ Deletion failed');
+      console.warn('[DeleteAccount] Error type:', e?.constructor?.name);
+      console.warn('[DeleteAccount] Error message:', e?.message);
+      console.warn('[DeleteAccount] Error details:', JSON.stringify(e?.details || e, null, 2));
+      console.warn('[DeleteAccount] HTTP status:', e?.httpStatus || e?.response?.status || 'unknown');
+
+      const userMessage = e?.message?.includes('403') || e?.httpStatus === 403
+        ? 'Permission denied. Please contact support at info@graftonliquor.co.nz to delete your account.'
+        : `Failed to delete account: ${e?.message || 'Unknown error'}. Please try again or contact support at info@graftonliquor.co.nz.`;
+
+      Alert.alert('Deletion Failed', userMessage, [{ text: 'OK' }]);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (error) {
@@ -592,6 +618,128 @@ export const MemberView = ({ navigation }) => {
         </View>
       </DismissKeyboardScrollView>
       </KeyboardAvoidingView>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!isDeleting) setShowDeleteModal(false); }}
+      >
+        <View style={deleteModalStyles.overlay}>
+          <View style={deleteModalStyles.container}>
+            <RNText style={deleteModalStyles.title}>Confirm Account Deletion</RNText>
+            <RNText style={deleteModalStyles.description}>
+              Type <RNText style={{ fontWeight: 'bold' }}>DELETE</RNText> below to permanently delete your account.
+            </RNText>
+            <TextInput
+              style={deleteModalStyles.input}
+              placeholder='Type "DELETE"'
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!isDeleting}
+            />
+            <View style={deleteModalStyles.buttonRow}>
+              <TouchableOpacity
+                style={deleteModalStyles.cancelButton}
+                onPress={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                disabled={isDeleting}
+                activeOpacity={0.7}
+              >
+                <RNText style={deleteModalStyles.cancelButtonText}>Cancel</RNText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  deleteModalStyles.deleteButton,
+                  deleteConfirmText.trim().toUpperCase() !== 'DELETE' && { opacity: 0.5 },
+                ]}
+                onPress={executeAccountDeletion}
+                disabled={isDeleting || deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+                activeOpacity={0.7}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <RNText style={deleteModalStyles.deleteButtonText}>Delete My Account</RNText>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GestureHandlerRootView>
   );
 };
+
+const deleteModalStyles = RNStyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#EF4444',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 14,
+    color: '#403f2b',
+    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#403f2b',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#403f2b',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+});
