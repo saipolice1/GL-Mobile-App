@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Keyboard, TouchableWithoutFeedback } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform, Keyboard, TouchableWithoutFeedback } from "react-native";
 import { HelperText, TextInput } from "react-native-paper";
 import { useQueryClient } from "@tanstack/react-query";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -158,22 +158,12 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.logoArea}>
-              <Text style={styles.title}>Login</Text>
-            </View>
-            <View style={styles.inputView}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.content}>
+          <View style={styles.logoArea}>
+            <Text style={styles.title}>Login</Text>
+          </View>
+          <View style={styles.inputView}>
         <TextInput
           theme={{ colors: { primary: theme.colors.accent } }}
           style={styles.input}
@@ -266,10 +256,9 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
         <Text style={styles.secureLoginText}>
           You'll be redirected to our secure Grafton Liquor login (powered by Wix).
         </Text>
-      </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }
@@ -279,13 +268,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  keyboardAvoid: {
+  content: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     justifyContent: "center",
-    paddingBottom: 30,
   },
   logoArea: {
     alignItems: "center",
