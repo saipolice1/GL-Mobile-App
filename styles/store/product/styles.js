@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 import { theme } from "../../theme";
-import { IS_TABLET, rs } from "../../utils/responsive";
+import { IS_TABLET, rs } from "../../../utils/responsive";
 
 export const styles = StyleSheet.create({
   backContainer: {
