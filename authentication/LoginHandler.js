@@ -204,7 +204,9 @@ export function useLoginByWixManagedPages() {
       const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (res.type !== "success" || !res.url) {
-        throw new Error("Login cancelled");
+        // User cancelled or dismissed — silently return, don't show error
+        setSessionLoading(false);
+        return;
       }
 
       const { code, state, error, errorDescription } =

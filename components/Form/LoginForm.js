@@ -13,6 +13,22 @@ import Routes from "../../routes/routes";
 import { theme } from "../../styles/theme";
 import { Ionicons } from "@expo/vector-icons";
 
+/**
+ * Check if an error message indicates the user simply cancelled the login flow.
+ * These should be silently ignored — not shown as errors.
+ */
+function isCancelError(msg) {
+  if (!msg) return false;
+  const lower = typeof msg === 'string' ? msg.toLowerCase() : String(msg).toLowerCase();
+  return (
+    lower.includes('cancel') ||
+    lower.includes('dismiss') ||
+    lower.includes('err_canceled') ||
+    lower.includes('user denied') ||
+    lower.includes('user aborted')
+  );
+}
+
 export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,15 +80,18 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
         queryClient.invalidateQueries({ queryKey: ["my-orders"] });
         
         console.log("Session updated, navigation should refresh");
-        // Don't navigate away - let the component re-render with logged in state
-      } else {
-        setErrorMessage(result.error || "Login failed");
+      } else if (result.error && !isCancelError(result.error)) {
+        setErrorMessage(result.error);
         setError(true);
       }
+      // If user cancelled, silently ignore — no error shown
     } catch (e) {
-      console.error("System login error:", e);
-      setErrorMessage(e.toString());
-      setError(true);
+      const msg = e?.toString() || "Login failed";
+      if (!isCancelError(msg)) {
+        console.error("System login error:", e);
+        setErrorMessage(msg);
+        setError(true);
+      }
     } finally {
       setSystemLoginLoading(false);
     }
@@ -85,10 +104,30 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
       const { email, firstName, lastName, password } = await performAppleSignIn();
 
       // Try to register on Wix (will fail silently if account already exists)
-      await tryRegisterOnWix(wixCient, email, password, firstName, lastName);
+      const regResult = await tryRegisterOnWix(wixCient, email, password, firstName, lastName);
 
-      // Login using the existing LoginHandler flow (handles silentLogin + token exchange)
-      await login(email, password);
+      // If registration succeeded and returned a sessionToken, use it directly
+      if (regResult?.data?.sessionToken) {
+        console.log("Apple Sign-In: Registration succeeded, using sessionToken for silent login");
+        // The LoginHandler's login() uses email/password which calls auth.login()
+        // then silentLogin — but we already have a sessionToken from register
+        await login(email, password);
+      } else {
+        // Registration returned FAILURE or null — try login directly
+        // Account may already exist (re-registration) or may need approval
+        console.log("Apple Sign-In: Registration did not return sessionToken, trying login...");
+        try {
+          await login(email, password);
+        } catch (loginErr) {
+          const errMsg = loginErr?.toString() || "";
+          console.warn("Apple Sign-In: Login failed after registration:", errMsg);
+          // Provide a user-friendly message instead of raw network error
+          throw new Error(
+            "Unable to sign in with Apple. Your account may need to be set up again. " +
+            "Please try signing in with your email and password, or contact support at info@graftonliquor.co.nz."
+          );
+        }
+      }
 
       // Invalidate queries to refresh with new auth
       queryClient.invalidateQueries({ queryKey: ["currentMember"] });
@@ -100,7 +139,7 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
     } catch (e) {
       const msg = e?.toString() || "Apple Sign-In failed";
       // Don't show error if user cancelled
-      if (!msg.includes("ERR_CANCELED") && !msg.includes("cancelled")) {
+      if (!isCancelError(msg)) {
         setErrorMessage(msg);
         setError(true);
       }

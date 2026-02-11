@@ -91,6 +91,18 @@ export const tryRegisterOnWix = async (
       "Apple Sign-In: Wix registration result:",
       result?.loginState
     );
+
+    // If registration returned FAILURE, it may be because the email is
+    // already associated with a different Wix account (e.g. deleted and
+    // re-created, or registered with email/password). We treat FAILURE
+    // the same as "already exists" — the subsequent login() call will
+    // either succeed or give a clear auth error.
+    if (result?.loginState === "FAILURE") {
+      console.log(
+        "Apple Sign-In: Registration returned FAILURE — will attempt login"
+      );
+    }
+
     return result;
   } catch (e) {
     // Ignore — user may already exist on Wix

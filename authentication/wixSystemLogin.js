@@ -51,7 +51,7 @@ export async function loginWithSystemBrowser() {
 
     if (result.type === "cancel" || result.type === "dismiss") {
       console.log("User cancelled login");
-      return { success: false, error: "Login cancelled" };
+      return { success: false, cancelled: true };
     }
 
     if (result.type !== "success" || !result.url) {
