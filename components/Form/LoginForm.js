@@ -42,9 +42,17 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
   const queryClient = useQueryClient();
 
   // Check if Apple Sign-In is available on this device
+  // Always show button on iOS — isAvailableAsync is used to determine full
+  // native flow vs graceful fallback. Apple requires the button to always
+  // be visible per guideline 4.8.
   useEffect(() => {
     if (Platform.OS === "ios") {
-      isAppleSignInAvailable().then(setAppleAvailable);
+      isAppleSignInAvailable().then((available) => {
+        setAppleAvailable(available);
+        if (!available) {
+          console.warn("Apple Sign-In: isAvailableAsync returned false — button will still render on iOS");
+        }
+      });
     }
   }, []);
 
@@ -204,6 +212,25 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
           <Text style={styles.dividerText}>or continue with</Text>
           <View style={styles.divider} />
         </View>
+
+        {/* Apple Sign-In — always visible on iOS per Apple Guideline 4.8 */}
+        {Platform.OS === "ios" && (
+          <View style={styles.appleSignInContainer}>
+            {appleLoginLoading ? (
+              <View style={styles.appleLoadingContainer}>
+                <ActivityIndicator color="#FFFFFF" />
+              </View>
+            ) : (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={8}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            )}
+          </View>
+        )}
         
         <TouchableOpacity
           style={styles.googleButton}
@@ -225,25 +252,6 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
         <Text style={styles.secureLoginText}>
           You'll be redirected to our secure Grafton Liquor login (powered by Wix).
         </Text>
-
-        {/* Apple Sign-In — iOS only */}
-        {Platform.OS === "ios" && appleAvailable && (
-          <View style={styles.appleSignInContainer}>
-            {appleLoginLoading ? (
-              <View style={styles.appleLoadingContainer}>
-                <ActivityIndicator color={theme.colors.text} />
-              </View>
-            ) : (
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={8}
-                style={styles.appleButton}
-                onPress={handleAppleSignIn}
-              />
-            )}
-          </View>
-        )}
       </View>
     </DismissKeyboardSafeAreaView>
   );
@@ -267,7 +275,9 @@ const styles = StyleSheet.create({
   inputView: {
     gap: 15,
     width: "100%",
+    maxWidth: 500,
     paddingHorizontal: 30,
+    alignSelf: "center",
   },
   input: {
     minWidth: "100%",
@@ -352,14 +362,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   appleSignInContainer: {
-    marginTop: 16,
+    marginTop: 4,
   },
   appleButton: {
     width: "100%",
-    height: 48,
+    height: 50,
+    minHeight: 44,
   },
   appleLoadingContainer: {
-    height: 48,
+    height: 50,
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: "#000000",
     alignItems: "center",
