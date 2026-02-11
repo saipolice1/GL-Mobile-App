@@ -261,8 +261,7 @@ export const MemberView = ({ navigation }) => {
   const [error, setError] = useState(null);
 
   // Fetch current member on mount and when session changes
-  // NOTE: getCurrentMember() only returns identity info (ID, profile, nickname)
-  // Contact details come from: 1) Contacts API (using contactId), 2) AsyncStorage (keyed by member ID)
+  // Contact details come from: 1) Members API (getCurrentMember with FULL fieldsets), 2) AsyncStorage fallback
   useEffect(() => {
     const fetchCurrentMember = async () => {
       if (!session?.refreshToken) {
@@ -273,43 +272,24 @@ export const MemberView = ({ navigation }) => {
       try {
         setIsLoading(true);
         const { member } = await wixCient.members.getCurrentMember({
-          fieldSet: 'FULL',
+          fieldsets: ['FULL'],
         });
 
         console.log('=== MemberView: Fetched member data from Wix ===');
         console.log('Member ID:', member._id);
-        console.log('Contact ID:', member.contactId);
         console.log('Profile:', JSON.stringify(member.profile, null, 2));
+        console.log('Contact from Members API:', JSON.stringify(member.contact, null, 2));
         
-        // Try to fetch contact using contactId from Contacts API
-        let wixFirstName = member.profile?.nickname || '';
-        let wixLastName = '';
+        // Extract contact details from Members API response
+        // member.contact may have firstName, lastName, phones directly
+        const memberContact = member.contact || {};
+        let wixFirstName = memberContact.firstName || member.profile?.nickname || '';
+        let wixLastName = memberContact.lastName || '';
+        // phones can be array of strings or array of objects with .phone property
         let wixPhone = '';
-        
-        if (member.contactId) {
-          try {
-            console.log('Fetching contact details for contactId:', member.contactId);
-            const contactResponse = await wixCient.contacts.getContact(member.contactId);
-            console.log('=== RAW CONTACT FROM WIX ===');
-            console.log(JSON.stringify(contactResponse, null, 2));
-            console.log('============================');
-            
-            if (contactResponse?.contact) {
-              const c = contactResponse.contact;
-              wixFirstName = c.info?.name?.first || wixFirstName;
-              wixLastName = c.info?.name?.last || '';
-              wixPhone = c.info?.phones?.[0]?.phone || '';
-            }
-          } catch (contactErr) {
-            console.error('=== ERROR FETCHING CONTACT FROM WIX ===');
-            console.error('Error type:', contactErr?.constructor?.name);
-            console.error('Error message:', contactErr?.message);
-            console.error('Error details:', JSON.stringify(contactErr?.details || contactErr, null, 2));
-            console.error('=======================================');
-            // If it's a 403, permissions aren't enabled in Wix Headless settings
-          }
-        } else {
-          console.log('No contactId on member - cannot fetch contact details');
+        if (memberContact.phones && memberContact.phones.length > 0) {
+          const firstPhone = memberContact.phones[0];
+          wixPhone = typeof firstPhone === 'string' ? firstPhone : (firstPhone?.phone || '');
         }
         
         // Load stored contact as fallback
@@ -318,7 +298,7 @@ export const MemberView = ({ navigation }) => {
         
         const enrichedMember = {
           ...member,
-          // Prefer Wix Contacts API data, then stored data, then profile nickname
+          // Prefer Members API contact data, then stored data, then profile nickname
           contact: {
             firstName: wixFirstName || storedContact?.firstName || '',
             lastName: wixLastName || storedContact?.lastName || '',
@@ -327,7 +307,7 @@ export const MemberView = ({ navigation }) => {
         };
 
         console.log('✅ Member loaded - contact data:');
-        console.log('   From Wix Contacts:', { firstName: wixFirstName, lastName: wixLastName, phone: wixPhone });
+        console.log('   From Members API:', { firstName: wixFirstName, lastName: wixLastName, phone: wixPhone });
         console.log('   From stored:', storedContact);
         console.log('   Final:', enrichedMember.contact);
 

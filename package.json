@@ -16,7 +16,6 @@
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
     "@tanstack/react-query": "^5.90.20",
-    "@wix/crm": "^1.0.1462",
     "@wix/ecom": "^1.0.532",
     "@wix/members": "^1.0.71",
     "@wix/redirects": "^1.0.42",
