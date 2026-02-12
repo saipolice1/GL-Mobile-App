@@ -8,9 +8,9 @@
     "userInterfaceStyle": "light",
     "scheme": "graftonliquor",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/adaptive-icon-foreground.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a1a2e"
+      "backgroundColor": "#FFFFFF"
     },
     "assetBundlePatterns": [
       "**/*"
