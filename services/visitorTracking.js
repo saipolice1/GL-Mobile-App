@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
+import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import { wixCient } from '../authentication/wixClient';
 import { members } from '@wix/members';
@@ -89,6 +90,43 @@ export async function getMemberInfo() {
   }
 }
 
+// Cache location for the session (undefined = not yet fetched, null = denied/unavailable)
+let cachedLocation = undefined;
+
+// Get location info (city/region/country) — requests permission on first call
+async function getLocationInfo() {
+  if (cachedLocation !== undefined) return cachedLocation;
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      cachedLocation = null;
+      return null;
+    }
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Lowest,
+      maximumAge: 10 * 60 * 1000,
+      timeout: 5000,
+    });
+    const [geocode] = await Location.reverseGeocodeAsync({
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    });
+    cachedLocation = geocode
+      ? {
+          city: geocode.city || null,
+          region: geocode.region || null,
+          country: geocode.country || null,
+          postalCode: geocode.postalCode || null,
+        }
+      : null;
+    return cachedLocation;
+  } catch (error) {
+    console.log('📍 Location not available:', error.message);
+    cachedLocation = null;
+    return null;
+  }
+}
+
 // Activity types
 export const ACTIVITY_TYPES = {
   PAGE_VIEW: 'page_view',
@@ -113,6 +151,7 @@ export async function trackActivity(activityType, data = {}) {
     const visitorId = await getVisitorId();
     const deviceInfo = getDeviceInfo();
     const memberInfo = await getMemberInfo();
+    const locationInfo = await getLocationInfo();
     
     const activity = {
       id: `act_${Date.now()}`,
@@ -122,6 +161,7 @@ export async function trackActivity(activityType, data = {}) {
       timestamp: new Date().toISOString(),
       device: deviceInfo,
       member: memberInfo,
+      location: locationInfo,
     };
     
     console.log('📊 Tracking:', activity.type, data.productName || data.page || '');
@@ -172,9 +212,9 @@ async function sendWebhookNotification(activity) {
         model: activity.device.modelName
       },
       // Member info (if logged in)
-      memberId: activity.member?.memberId || null,
+      memberId: activity.member?.memberId ?? null,
       memberName: activity.member?.memberName || null,
-      memberEmail: activity.member?.memberEmail || null,
+      memberEmail: activity.member?.memberEmail ?? null,
       // Event-specific data
       productId: activity.data.productId || null,
       productName: activity.data.productName || null,
@@ -182,7 +222,13 @@ async function sendWebhookNotification(activity) {
       price: activity.data.price || null,
       quantity: activity.data.quantity || null,
       searchQuery: activity.data.query || null,
-      isNewVisitor: activity.data.isNewVisitor || null
+      // Use ?? instead of || so that `false` is sent correctly (not converted to null)
+      isNewVisitor: activity.data.isNewVisitor ?? null,
+      // Location (city/region/country from device GPS — null if permission denied)
+      city: activity.location?.city || null,
+      region: activity.location?.region || null,
+      country: activity.location?.country || null,
+      postalCode: activity.location?.postalCode || null,
     };
     
     // Send to your Velo HTTP function (with site credentials)

@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { currentCart } from "@wix/ecom";
 import * as Linking from "expo-linking";
+import { LinearGradient } from "expo-linear-gradient";
 import _, { isInteger } from "lodash";
 import * as React from "react";
 import { useEffect, useRef } from "react";
@@ -26,6 +27,7 @@ import Routes from "../../../routes/routes";
 import { CheckoutScreen } from "../checkout/CheckoutScreen";
 import { CheckoutThankYouScreen } from "../checkout/CheckoutThankYouScreen";
 import { ProductScreen } from "../product/ProductScreen";
+import { ProductModal } from "../../../components/ProductModal/ProductModal";
 import { theme } from "../../../styles/theme";
 import { IS_TABLET, rs } from "../../../utils/responsive";
 
@@ -186,18 +188,16 @@ const CartDeliveryProgress = ({ cartTotal }) => {
             }
           </Text>
           <View style={cartStyles.progressBar}>
-            <View style={[
-              cartStyles.progressFill, 
-              { width: `${sameDayProgress * 100}%` },
-              sameDayUnlocked && cartStyles.progressComplete
-            ]}>
-              <Animated.View 
-                style={[
-                  cartStyles.shimmer,
-                  { transform: [{ translateX: shimmerTranslate }] }
-                ]} 
+            {sameDayUnlocked ? (
+              <LinearGradient
+                colors={['#10B981', '#3B82F6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[cartStyles.progressFill, { width: '100%' }]}
               />
-            </View>
+            ) : (
+              <View style={[cartStyles.progressFill, { width: `${sameDayProgress * 100}%`, backgroundColor: '#9CA3AF' }]} />
+            )}
           </View>
         </View>
       </View>
@@ -219,18 +219,16 @@ const CartDeliveryProgress = ({ cartTotal }) => {
             }
           </Text>
           <View style={cartStyles.progressBar}>
-            <View style={[
-              cartStyles.progressFill, 
-              { width: `${freeDeliveryProgress * 100}%` },
-              freeDeliveryUnlocked && cartStyles.progressComplete
-            ]}>
-              <Animated.View 
-                style={[
-                  cartStyles.shimmer,
-                  { transform: [{ translateX: shimmerTranslate }] }
-                ]} 
+            {freeDeliveryUnlocked ? (
+              <LinearGradient
+                colors={['#F59E0B', '#EF4444']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[cartStyles.progressFill, { width: '100%' }]}
               />
-            </View>
+            ) : (
+              <View style={[cartStyles.progressFill, { width: `${freeDeliveryProgress * 100}%`, backgroundColor: '#9CA3AF' }]} />
+            )}
           </View>
         </View>
       </View>
@@ -239,7 +237,7 @@ const CartDeliveryProgress = ({ cartTotal }) => {
 };
 
 // Cart Item Component with animations
-const CartItemCard = ({ item, currency, onUpdateQuantity, onRemove, isUpdating, index = 0 }) => {
+const CartItemCard = ({ item, currency, onUpdateQuantity, onRemove, isUpdating, index = 0, onProductPress }) => {
   // Get the Wix image URL from the item
   const wixImageUrl = item.image || item.media?.mainMedia?.image?.url || '';
   const price = Number.parseFloat(item.price?.amount) || 0;
@@ -298,13 +296,20 @@ const CartItemCard = ({ item, currency, onUpdateQuantity, onRemove, isUpdating, 
         },
       ]}
     >
-      <WixMediaImage media={wixImageUrl} width={80} height={80}>
-        {({ url }) => (
-          <Image source={{ uri: url }} style={cartStyles.itemImage} />
-        )}
-      </WixMediaImage>
+      <TouchableOpacity 
+        activeOpacity={0.8}
+        onPress={() => onProductPress && onProductPress(item)}
+      >
+        <WixMediaImage media={wixImageUrl} width={80} height={80}>
+          {({ url }) => (
+            <Image source={{ uri: url }} style={cartStyles.itemImage} />
+          )}
+        </WixMediaImage>
+      </TouchableOpacity>
       <View style={cartStyles.itemInfo}>
-        <Text style={cartStyles.itemName} numberOfLines={2}>{item.productName?.translated || 'Product'}</Text>
+        <TouchableOpacity onPress={() => onProductPress && onProductPress(item)}>
+          <Text style={cartStyles.itemName} numberOfLines={2}>{item.productName?.translated || 'Product'}</Text>
+        </TouchableOpacity>
         <Text style={cartStyles.itemPrice}>${price.toFixed(2)} each</Text>
         
         <View style={cartStyles.quantityRow}>
@@ -484,6 +489,26 @@ function CartView() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+  const [selectedProduct, setSelectedProduct] = React.useState(null);
+  const [productModalVisible, setProductModalVisible] = React.useState(false);
+  const [loadingProduct, setLoadingProduct] = React.useState(false);
+
+  const handleProductPress = async (cartItem) => {
+    const productId = cartItem.catalogReference?.catalogItemId;
+    if (!productId) return;
+    try {
+      setLoadingProduct(true);
+      const { product } = await wixCient.products.getProduct(productId);
+      if (product) {
+        setSelectedProduct(product);
+        setProductModalVisible(true);
+      }
+    } catch (e) {
+      console.log('Failed to load product:', e.message);
+    } finally {
+      setLoadingProduct(false);
+    }
+  };
 
   // Fetch cart
   const cartQuery = useQuery({
@@ -627,13 +652,29 @@ function CartView() {
               }
               onRemove={() => removeMutation.mutate(item._id)}
               isUpdating={updateQuantityMutation.isPending}
+              onProductPress={handleProductPress}
             />
           ))}
         </View>
 
         {/* Smart Delivery Options Note */}
         <SmartDeliveryNote cartTotal={subtotal} cartItems={cart.lineItems} />
+
+        {/* Nationwide Shipping Note */}
+        <View style={cartStyles.shippingNote}>
+          <Ionicons name="airplane-outline" size={20} color={theme.colors.accent} />
+          <Text style={cartStyles.shippingNoteText}>
+            {'🇳🇿 Nationwide courier delivery available for wines & spirits — including vodka, rum, whiskey, liqueur and gin. Beer & RTDs are available for local delivery only.'}
+          </Text>
+        </View>
       </ScrollView>
+
+      {/* Product Modal */}
+      <ProductModal
+        visible={productModalVisible}
+        product={selectedProduct}
+        onClose={() => { setProductModalVisible(false); setSelectedProduct(null); }}
+      />
 
       {/* Bottom Checkout Section */}
       <View style={cartStyles.checkoutSection}>
@@ -641,6 +682,38 @@ function CartView() {
           <Text style={cartStyles.totalLabel}>Subtotal</Text>
           <Text style={cartStyles.totalAmount}>${subtotal.toFixed(2)}</Text>
         </View>
+        
+        {/* Afterpay installment for cart total */}
+        {subtotal > 0 && (
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginBottom: 14,
+            marginTop: -4,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          }}>
+            <Text style={{ fontSize: 14, color: theme.colors.textMuted }}>
+              or 4 interest-free payments of{' '}
+            </Text>
+            <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '700' }}>
+              NZ ${(subtotal / 4).toFixed(2)}
+            </Text>
+            <Text style={{ fontSize: 14, color: theme.colors.textMuted }}> with </Text>
+            <Image
+              source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
+              style={{ width: 80, height: 18, resizeMode: 'contain' }}
+            />
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.afterpay.com/en-NZ/how-it-works')}>
+              <Text style={{ fontSize: 13, color: theme.colors.accent, marginLeft: 6, textDecorationLine: 'underline' }}>learn more</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         
         <TouchableOpacity 
           style={[cartStyles.checkoutButton, checkoutLoading && cartStyles.checkoutButtonDisabled]}
@@ -837,6 +910,25 @@ const cartStyles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginLeft: 10,
     flex: 1,
+  },
+  // Shipping Note
+  shippingNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  shippingNoteText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginLeft: 10,
+    flex: 1,
+    lineHeight: 17,
   },
   // Checkout Section
   checkoutSection: {

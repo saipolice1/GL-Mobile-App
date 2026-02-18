@@ -109,22 +109,16 @@ export const DeliveryProgressBar = ({ cartTotal = 0 }) => {
           <Text style={styles.minAmount}>${SAME_DAY_MIN}</Text>
         </View>
         <View style={styles.progressBackground}>
-          <LinearGradient
-            colors={['#10B981', '#3B82F6', '#8B5CF6']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[
-              styles.progressFill, 
-              { width: `${sameDayProgress * 100}%` },
-            ]}
-          >
-            <Animated.View 
-              style={[
-                styles.shimmer,
-                { transform: [{ translateX: shimmerTranslate }] }
-              ]} 
+          {sameDayUnlocked ? (
+            <LinearGradient
+              colors={['#10B981', '#3B82F6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.progressFill, { width: '100%' }]}
             />
-          </LinearGradient>
+          ) : (
+            <View style={[styles.progressFill, { width: `${sameDayProgress * 100}%`, backgroundColor: '#9CA3AF' }]} />
+          )}
         </View>
       </View>
 
@@ -149,22 +143,16 @@ export const DeliveryProgressBar = ({ cartTotal = 0 }) => {
           <Text style={styles.minAmount}>${FREE_DELIVERY_MIN}</Text>
         </View>
         <View style={styles.progressBackground}>
-          <LinearGradient
-            colors={['#F59E0B', '#EF4444', '#EC4899']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[
-              styles.progressFill, 
-              { width: `${freeDeliveryProgress * 100}%` },
-            ]}
-          >
-            <Animated.View 
-              style={[
-                styles.shimmer,
-                { transform: [{ translateX: shimmerTranslate }] }
-              ]} 
+          {freeDeliveryUnlocked ? (
+            <LinearGradient
+              colors={['#F59E0B', '#EF4444']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.progressFill, { width: '100%' }]}
             />
-          </LinearGradient>
+          ) : (
+            <View style={[styles.progressFill, { width: `${freeDeliveryProgress * 100}%`, backgroundColor: '#9CA3AF' }]} />
+          )}
         </View>
       </View>
     </Animated.View>

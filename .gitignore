@@ -4,3 +4,6 @@ secrets/
 
 node_modules
 .expo/
+
+# EAS build output
+dist/

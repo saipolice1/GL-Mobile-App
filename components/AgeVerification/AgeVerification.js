@@ -15,6 +15,7 @@ import { theme } from '../../styles/theme';
 const { width, height } = Dimensions.get('window');
 
 const AGE_VERIFIED_KEY = 'grafton_liquor_age_verified';
+const AGE_VERIFIED_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export const AgeVerification = ({ children }) => {
   const [isVerified, setIsVerified] = useState(false);
@@ -26,9 +27,16 @@ export const AgeVerification = ({ children }) => {
 
   const checkAgeVerification = async () => {
     try {
-      const verified = await SecureStore.getItemAsync(AGE_VERIFIED_KEY);
-      if (verified === 'true') {
-        setIsVerified(true);
+      const storedValue = await SecureStore.getItemAsync(AGE_VERIFIED_KEY);
+      if (storedValue) {
+        const verifiedAt = parseInt(storedValue, 10);
+        // Check if verification is still within 24 hours
+        if (!isNaN(verifiedAt) && (Date.now() - verifiedAt) < AGE_VERIFIED_EXPIRY) {
+          setIsVerified(true);
+        } else {
+          // Expired — clear it
+          await SecureStore.deleteItemAsync(AGE_VERIFIED_KEY);
+        }
       }
     } catch (error) {
       console.error('Error checking age verification:', error);
@@ -39,7 +47,8 @@ export const AgeVerification = ({ children }) => {
 
   const handleVerify = async () => {
     try {
-      await SecureStore.setItemAsync(AGE_VERIFIED_KEY, 'true');
+      // Store the current timestamp so we can expire it after 24 hours
+      await SecureStore.setItemAsync(AGE_VERIFIED_KEY, Date.now().toString());
       setIsVerified(true);
     } catch (error) {
       console.error('Error saving age verification:', error);

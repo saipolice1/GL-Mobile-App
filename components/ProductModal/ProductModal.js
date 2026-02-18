@@ -413,6 +413,19 @@ export const ProductModal = ({
                 <Text style={styles.productPrice}>
                   {currentProduct.priceData?.formatted?.price || formatPrice(unitPrice)}
                 </Text>
+
+                {/* Afterpay installment */}
+                {unitPrice > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>or 4 x </Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: '700' }}>NZ ${(unitPrice / 4).toFixed(2)}</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.textMuted }}> with </Text>
+                    <Image
+                      source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
+                      style={{ width: 65, height: 14, resizeMode: 'contain' }}
+                    />
+                  </View>
+                )}
                 
                 {/* Stock Quantity Display */}
                 {trackInventory && stockQuantity !== undefined && (

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -370,6 +371,22 @@ export const EmbeddedProductModal = ({
               <Text style={styles.productPrice}>
                 {currentProduct.priceData?.formatted?.price || formatPrice(unitPrice)}
               </Text>
+
+              {/* Afterpay installment */}
+              {unitPrice > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                  <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>or 4 x </Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.text, fontWeight: '700' }}>NZ ${(unitPrice / 4).toFixed(2)}</Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.textMuted }}> with </Text>
+                  <Image
+                    source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
+                    style={{ width: 65, height: 14, resizeMode: 'contain' }}
+                  />
+                  <TouchableOpacity onPress={() => Linking.openURL('https://www.afterpay.com/en-NZ/how-it-works')}>
+                    <Text style={{ fontSize: 11, color: theme.colors.accent, marginLeft: 4, textDecorationLine: 'underline' }}>learn more</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               
               {/* Stock Quantity Display */}
               {trackInventory && stockQuantity !== undefined && (

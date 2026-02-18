@@ -25,34 +25,41 @@ export const NotificationsModal = ({ visible, onClose }) => {
   const subscriptionsQuery = useQuery({
     queryKey: ["back-in-stock-subscriptions", session],
     queryFn: async () => {
-      const { member } = await wixCient.members.getCurrentMember();
-      const memberId = member?._id;
+      try {
+        const { member } = await wixCient.members.getCurrentMember();
+        const memberId = member?._id;
 
-      if (!memberId) {
+        if (!memberId) {
+          return { dataItems: [] };
+        }
+
+        const res = await wixCient.fetchWithAuth(
+          `https://www.wixapis.com/wix-data/v2/items/query`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              dataCollectionId: "BackInStockSubscriptions",
+              query: {
+                filter: {
+                  notified: false,
+                  memberId,
+                },
+              },
+            }),
+          },
+        );
+        return res.json();
+      } catch (error) {
+        console.log('⚠️ Notifications fetch failed:', error?.message);
+        // Return empty rather than throwing — prevents error UI for session issues
         return { dataItems: [] };
       }
-
-      const res = await wixCient.fetchWithAuth(
-        `https://www.wixapis.com/wix-data/v2/items/query`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            dataCollectionId: "BackInStockSubscriptions",
-            query: {
-              filter: {
-                notified: false,
-                memberId,
-              },
-            },
-          }),
-        },
-      );
-      return res.json();
     },
-    enabled: visible && isLoggedIn, // Only fetch when modal is visible and user is logged in
+    enabled: visible && isLoggedIn,
+    retry: false,
   });
 
   const removeSubscriptionMutation = useMutation({

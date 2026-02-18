@@ -347,6 +347,35 @@ export function ProductScreen({ route, navigation }) {
                 {selectedVariant?.variant?.convertedPriceData?.formatted?.discountedPrice}
               </RNText>
             )}
+            {/* Afterpay installment message */}
+            {(() => {
+              const rawPrice = selectedVariant?.variant?.convertedPriceData?.price 
+                || product?.priceData?.price 
+                || product?.convertedPriceData?.price;
+              const numericPrice = Number.parseFloat(rawPrice);
+              if (numericPrice && numericPrice > 0) {
+                const installment = (numericPrice / 4).toFixed(2);
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+                    <RNText style={{ fontSize: 13, color: appTheme.colors.textMuted }}>
+                      or 4 interest-free payments of{' '}
+                    </RNText>
+                    <RNText style={{ fontSize: 13, color: appTheme.colors.text, fontWeight: '600' }}>
+                      NZ ${installment}
+                    </RNText>
+                    <RNText style={{ fontSize: 13, color: appTheme.colors.textMuted }}> with </RNText>
+                    <Image
+                      source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
+                      style={{ width: 70, height: 16, resizeMode: 'contain' }}
+                    />
+                    <TouchableOpacity onPress={() => Linking.openURL('https://www.afterpay.com/en-NZ/how-it-works')}>
+                      <RNText style={{ fontSize: 12, color: appTheme.colors.accent, marginLeft: 4, textDecorationLine: 'underline' }}>learn more</RNText>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+              return null;
+            })()}
           </View>
 
           {/* Product Content */}

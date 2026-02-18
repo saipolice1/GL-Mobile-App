@@ -38,12 +38,24 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Grafton Liquor to use your location to show relevant delivery options and product availability in your area."
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "ff7755f5-3855-4230-bf8d-7ec40561eed4"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ff7755f5-3855-4230-bf8d-7ec40561eed4"
     }
   }
 }
