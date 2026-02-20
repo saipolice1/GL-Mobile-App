@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform, Keyboard, TouchableWithoutFeedback } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Platform, Keyboard, TouchableWithoutFeedback, Alert } from "react-native";
 import { HelperText, TextInput } from "react-native-paper";
 import { useQueryClient } from "@tanstack/react-query";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -125,27 +125,25 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
           await login(email, password);
         } catch (loginErr) {
           // Login with generated password failed — account exists with different password
-          // Fall back to Wix OAuth browser flow which handles existing accounts properly
-          console.log("Apple Sign-In: Generated password login failed, falling back to OAuth browser flow...");
-          try {
-            const result = await loginWithSystemBrowser();
-            if (result.success && result.tokens) {
-              console.log("Apple Sign-In: OAuth browser login succeeded");
-              await setSession(result.tokens);
-            } else if (result.cancelled) {
-              // User cancelled OAuth — silently ignore
-              return;
-            } else {
-              throw new Error(result.error || "OAuth login failed");
-            }
-          } catch (oauthErr) {
-            const oauthMsg = oauthErr?.toString() || "";
-            if (isCancelError(oauthMsg)) return;
-            console.warn("Apple Sign-In: OAuth fallback also failed:", oauthMsg);
-            throw new Error(
-              "Unable to sign in with Apple. Please try signing in with your email and password, or contact support at info@graftonliquor.co.nz."
-            );
-          }
+          // Pre-fill email and prompt user to enter their existing password
+          console.log("Apple Sign-In: Account exists with different password, prompting user...");
+          setEmail(email);
+          setAppleLoginLoading(false);
+          Alert.alert(
+            "Account Found",
+            `An account with ${email} already exists. Please enter your password below to sign in, or use the \"Sign in with Browser\" option.`,
+            [
+              {
+                text: "Enter Password",
+                style: "default",
+              },
+              {
+                text: "Sign in with Browser",
+                onPress: () => handleSystemLogin(),
+              },
+            ]
+          );
+          return; // Exit early — user will complete login via form or browser
         }
       }
 
