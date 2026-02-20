@@ -36,6 +36,72 @@ const Stack = createNativeStackNavigator();
 const SAME_DAY_MIN = 80;
 const FREE_DELIVERY_MIN = 200;
 
+// Animated Checkout Button with gradient and pulse
+const AnimatedCheckoutButton = ({ onPress, disabled, loading, subtotal }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  useEffect(() => {
+    // Subtle pulse to draw attention
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  };
+  
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled}
+      activeOpacity={1}
+    >
+      <Animated.View style={{ transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }] }}>
+        <LinearGradient
+          colors={disabled ? ['#9CA3AF', '#6B7280'] : ['#1F2937', '#374151']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={cartStyles.checkoutButton}
+        >
+          <Ionicons name="lock-closed" size={18} color="#fff" />
+          <Text style={cartStyles.checkoutButtonText}>
+            {loading ? 'Processing...' : 'Proceed to Checkout'}
+          </Text>
+        </LinearGradient>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
 // Animated Pressable Button
 const AnimatedButton = ({ onPress, style, disabled, children }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -662,7 +728,7 @@ function CartView() {
 
         {/* Nationwide Shipping Note */}
         <View style={cartStyles.shippingNote}>
-          <Ionicons name="airplane-outline" size={20} color={theme.colors.accent} />
+          <Ionicons name="airplane-outline" size={20} color="#D97706" />
           <Text style={cartStyles.shippingNoteText}>
             {'🇳🇿 Nationwide courier delivery available for wines & spirits — including vodka, rum, whiskey, liqueur and gin. Beer & RTDs are available for local delivery only.'}
           </Text>
@@ -688,43 +754,35 @@ function CartView() {
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
-            flexWrap: 'wrap',
+            justifyContent: 'center',
             marginBottom: 14,
             marginTop: -4,
             backgroundColor: theme.colors.surface,
             borderRadius: 8,
-            paddingHorizontal: 12,
+            paddingHorizontal: 10,
             paddingVertical: 8,
             borderWidth: 1,
             borderColor: theme.colors.border,
           }}>
-            <Text style={{ fontSize: 14, color: theme.colors.textMuted }}>
-              or 4 interest-free payments of{' '}
-            </Text>
-            <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '700' }}>
-              NZ ${(subtotal / 4).toFixed(2)}
-            </Text>
-            <Text style={{ fontSize: 14, color: theme.colors.textMuted }}> with </Text>
+            <Text style={{ fontSize: 13, color: theme.colors.textMuted }}>or 4 payments of </Text>
+            <Text style={{ fontSize: 13, color: theme.colors.text, fontWeight: '700' }}>NZ ${(subtotal / 4).toFixed(2)}</Text>
+            <Text style={{ fontSize: 13, color: theme.colors.textMuted }}> with </Text>
             <Image
               source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
-              style={{ width: 80, height: 18, resizeMode: 'contain' }}
+              style={{ width: 70, height: 16, resizeMode: 'contain' }}
             />
             <TouchableOpacity onPress={() => Linking.openURL('https://www.afterpay.com/en-NZ/how-it-works')}>
-              <Text style={{ fontSize: 13, color: theme.colors.accent, marginLeft: 6, textDecorationLine: 'underline' }}>learn more</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.accent, marginLeft: 6, textDecorationLine: 'underline' }}>learn more</Text>
             </TouchableOpacity>
           </View>
         )}
         
-        <TouchableOpacity 
-          style={[cartStyles.checkoutButton, checkoutLoading && cartStyles.checkoutButtonDisabled]}
+        <AnimatedCheckoutButton
           onPress={() => checkoutMutation.mutate()}
           disabled={checkoutLoading}
-        >
-          <Ionicons name="lock-closed" size={18} color={theme.colors.textLight} />
-          <Text style={cartStyles.checkoutButtonText}>
-            {checkoutLoading ? 'Processing...' : 'Proceed to Checkout'}
-          </Text>
-        </TouchableOpacity>
+          loading={checkoutLoading}
+          subtotal={subtotal}
+        />
         
         <Text style={cartStyles.secureText}>
           <Ionicons name="shield-checkmark" size={12} color={theme.colors.textMuted} /> Secure checkout
@@ -911,24 +969,25 @@ const cartStyles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
-  // Shipping Note
+  // Shipping Note - Gold/Yellow accent for visibility
   shippingNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FEF3C7', // Warm yellow background
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#F59E0B', // Amber border
   },
   shippingNoteText: {
     fontSize: 12,
-    color: theme.colors.textMuted,
+    color: '#92400E', // Dark amber text for contrast
     marginLeft: 10,
     flex: 1,
     lineHeight: 17,
+    fontWeight: '500',
   },
   // Checkout Section
   checkoutSection: {

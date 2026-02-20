@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useRef, useState, useEffect } from "react";
-import { Platform, Dimensions, Keyboard, View } from "react-native";
+import { Platform, Dimensions, Keyboard, View, KeyboardAvoidingView } from "react-native";
 import { WebView } from "react-native-webview";
 import { SimpleContainer } from "../../../components/Container/SimpleContainer";
 import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIndicator";
@@ -29,35 +29,48 @@ export function CheckoutScreen({ navigation, route }) {
   };
 
   const [loading, setLoading] = useState(true);
+  const [containerHeight, setContainerHeight] = useState(null);
   const webviewRef = useRef(null);
 
-  // Listen for keyboard hide to force WebView re-layout
+  // Listen for keyboard to force native container re-layout
   useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const sub = Keyboard.addListener(hideEvent, () => {
-      // Inject JS to force the page to recalculate its layout
+    
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      // Let natural keyboard avoidance work
+    });
+    
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      // Force native container to recalculate by briefly changing height
+      // This triggers a re-layout cycle
+      setContainerHeight('99.9%');
+      setTimeout(() => {
+        setContainerHeight(null); // Reset to flex
+      }, 50);
+      
+      // Also inject JS to fix web content
       if (webviewRef.current) {
         webviewRef.current.injectJavaScript(`
           (function() {
-            // Force body to recalculate height
             document.body.style.height = '100%';
             document.documentElement.style.height = '100%';
-            // Trigger reflow
             void document.body.offsetHeight;
-            // Scroll to maintain position
-            window.scrollTo(0, document.documentElement.scrollTop || document.body.scrollTop);
-            // Reset to auto so content can expand
             setTimeout(function() {
               document.body.style.height = 'auto';
-              document.documentElement.style.height = 'auto';
               document.body.style.minHeight = '100vh';
+              window.scrollTo(0, document.documentElement.scrollTop || document.body.scrollTop);
             }, 50);
           })();
           true;
         `);
       }
     });
-    return () => sub.remove();
+    
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   // Always use mobile content mode so the Wix checkout renders in single-column mobile layout
@@ -85,6 +98,20 @@ export function CheckoutScreen({ navigation, route }) {
       document.body.style.overflow = 'auto';
       document.body.style.webkitOverflowScrolling = 'touch';
       document.documentElement.style.height = '100%';
+      
+      // Move content up by reducing top padding/margin
+      var style = document.createElement('style');
+      style.textContent = \`
+        body { padding-top: 0 !important; margin-top: 0 !important; }
+        main, [data-hook="checkout-page"], #root > div:first-child { 
+          padding-top: 0 !important; 
+          margin-top: 0 !important; 
+        }
+        /* Reduce excessive spacing in Wix checkout */
+        form { padding-top: 8px !important; }
+        h1, h2, h3 { margin-top: 8px !important; }
+      \`;
+      document.head.appendChild(style);
       window.scrollTo(0, 0);
 
       // Detect keyboard via visualViewport API and fix height on resize
@@ -115,36 +142,47 @@ export function CheckoutScreen({ navigation, route }) {
   // User agent: on iPad, send mobile Safari UA to get mobile layout from Wix
   const mobileUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
+  // Container style - uses height hack to force re-layout after keyboard dismiss
+  const containerStyle = containerHeight 
+    ? { height: containerHeight, flex: undefined }
+    : { flex: 1 };
+
   const loadWebView = () => (
-    <View style={{ flex: 1 }}>
-      <WebView
-        style={styles.container}
-        setSupportMultipleWindows={false}
-        ref={webviewRef}
-        contentMode={contentMode}
-        source={{ uri: redirectSession?.fullUrl }}
-        goBack={() => navigation.navigate(Routes.Cart)}
-        onLoad={() => {
-          setLoading(false);
-        }}
-        injectedJavaScriptBeforeContentLoaded={viewportScript}
-        injectedJavaScript={postLoadScript}
-        scalesPageToFit={true}
-        bounces={false}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-        overScrollMode={"never"}
-        automaticallyAdjustContentInsets={true}
-        automaticallyAdjustsScrollIndicatorInsets={true}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardDisplayRequiresUserAction={false}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={true}
-        userAgent={mobileUA}
-        allowsBackForwardNavigationGestures={false}
-        startInLoadingState={false}
-      />
-    </View>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <View style={containerStyle}>
+        <WebView
+          style={styles.container}
+          setSupportMultipleWindows={false}
+          ref={webviewRef}
+          contentMode={contentMode}
+          source={{ uri: redirectSession?.fullUrl }}
+          goBack={() => navigation.navigate(Routes.Cart)}
+          onLoad={() => {
+            setLoading(false);
+          }}
+          injectedJavaScriptBeforeContentLoaded={viewportScript}
+          injectedJavaScript={postLoadScript}
+          scalesPageToFit={true}
+          bounces={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          overScrollMode={"never"}
+          automaticallyAdjustContentInsets={true}
+          automaticallyAdjustsScrollIndicatorInsets={true}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardDisplayRequiresUserAction={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
+          userAgent={mobileUA}
+          allowsBackForwardNavigationGestures={false}
+          startInLoadingState={false}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 
   return (

@@ -25,6 +25,12 @@ import { ViewAllModal } from '../../components/ViewAllModal/ViewAllModal';
 import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
 import { getBestSellers, listRecommendationAlgorithms } from '../../utils/wixRecommendations';
+import { 
+  getCachedProducts, 
+  cacheProducts, 
+  getCachedCollections, 
+  cacheCollections 
+} from '../../services/productCache';
 import Routes from '../../routes/routes';
 
 // Height threshold for logo to disappear
@@ -92,25 +98,45 @@ export const HomeScreen = ({ navigation }) => {
     return acc + (Number.parseFloat(item.price?.amount) || 0) * item.quantity;
   }, 0) || 0;
 
-  // Fetch collections from Wix
+  // Fetch collections from Wix (with caching)
   const { data: collections = [] } = useQuery({
     queryKey: ['collections'],
     queryFn: async () => {
       try {
+        // Try cache first
+        const cached = await getCachedCollections();
+        if (cached && cached.length > 0) {
+          // Fetch fresh in background
+          wixCient.collections.queryCollections().find().then(response => {
+            if (response?.items?.length > 0) {
+              cacheCollections(response.items);
+            }
+          }).catch(() => {});
+          return cached;
+        }
+
+        // No cache - fetch from API
         const response = await wixCient.collections.queryCollections().find();
         // Log all collections for debugging
         console.log('=== WIX COLLECTIONS ===');
         response?.items?.forEach(c => console.log(`Name: "${c.name}" | Slug: "${c.slug}" | ID: ${c._id}`));
         console.log('=======================');
+        
+        // Cache for next time
+        if (response?.items?.length > 0) {
+          cacheCollections(response.items);
+        }
         return response?.items || [];
       } catch (error) {
         console.log('Collections fetch error:', error);
-        return [];
+        // Try cache as fallback
+        const cached = await getCachedCollections();
+        return cached || [];
       }
     },
   });
 
-  // Fetch products based on selected category
+  // Fetch products based on selected category (with caching for all-products)
   const { data: products = [], isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products', selectedCategory, collections],
     queryFn: async () => {
@@ -139,6 +165,29 @@ export const HomeScreen = ({ navigation }) => {
           
           console.log(`Fetched ${allProducts.length} total products`);
           return allProducts;
+        };
+
+        // Helper function to fetch with cache-first strategy
+        const fetchWithCache = async (fetchFn, shouldCache = true) => {
+          // For "All Products" view, use cache-first approach
+          const cached = await getCachedProducts();
+          if (cached && cached.length > 0) {
+            console.log('📦 Using cached products for instant display');
+            // Refresh cache in background (non-blocking)
+            fetchFn().then(fresh => {
+              if (fresh && fresh.length > 0 && shouldCache) {
+                cacheProducts(fresh);
+              }
+            }).catch(() => {});
+            return cached;
+          }
+          
+          // No cache - fetch from API
+          const fresh = await fetchFn();
+          if (fresh && fresh.length > 0 && shouldCache) {
+            cacheProducts(fresh);
+          }
+          return fresh;
         };
 
         if (selectedCategory === 'trending') {
@@ -226,13 +275,13 @@ export const HomeScreen = ({ navigation }) => {
           }
           
           if (collection) {
-            // Check if it's "All Products" collection - use pagination
+            // Check if it's "All Products" collection - use cache-first pagination
             if (collection.slug === 'all-products' || collection._id === '00000000-000000-000000-000000000001') {
-              console.log('Fetching ALL products with pagination...');
-              const allProducts = await fetchAllProducts(
-                wixCient.products.queryProducts()
+              console.log('Fetching ALL products with caching...');
+              return await fetchWithCache(
+                () => fetchAllProducts(wixCient.products.queryProducts()),
+                true // Enable caching for all products
               );
-              return allProducts;
             }
             
             // For other collections, fetch with higher limit
@@ -245,26 +294,32 @@ export const HomeScreen = ({ navigation }) => {
             return response?.items || [];
           }
           
-          // Fallback: fetch all products with pagination
-          console.log('No collection found, fetching all products with pagination');
-          const allProducts = await fetchAllProducts(
-            wixCient.products.queryProducts()
+          // Fallback: fetch all products with cache-first pagination
+          console.log('No collection found, fetching all products with caching');
+          return await fetchWithCache(
+            () => fetchAllProducts(wixCient.products.queryProducts()),
+            true
           );
-          return allProducts;
         }
       } catch (error) {
         console.log('Products fetch error:', error);
+        // Try cache as fallback on error
+        const cached = await getCachedProducts();
+        if (cached && cached.length > 0) {
+          console.log('📦 Using cached products as fallback after error');
+          return cached;
+        }
         return [];
       }
     },
     enabled: true,
-    // Inventory-aware caching - balance performance with accuracy
-    staleTime: 30 * 1000, // Data fresh for 30 seconds (critical for inventory)
-    cacheTime: 2 * 60 * 1000, // Keep in cache for 2 minutes  
-    refetchInterval: 45 * 1000, // Refetch every 45 seconds (inventory updates)
+    // With caching, we can be more aggressive with stale time
+    staleTime: 60 * 1000, // Data fresh for 1 minute
+    cacheTime: 5 * 60 * 1000, // Keep in query cache for 5 minutes  
+    refetchInterval: 60 * 1000, // Refetch every minute
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true, // Refresh when user returns to app
-    refetchOnMount: 'always', // Always check for fresh data on mount
+    refetchOnMount: true, // Check for fresh data on mount
     retry: 2, // Retry twice for reliability
   });
 
