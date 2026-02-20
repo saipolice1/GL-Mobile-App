@@ -31,11 +31,10 @@ export function CheckoutScreen({ navigation, route }) {
   const [loading, setLoading] = React.useState(true);
   const webviewRef = useRef(null);
 
-  // Determine content mode based on device type
-  const contentMode = isTablet() ? "desktop" : "mobile";
+  // Always use mobile content mode so the Wix checkout renders in single-column mobile layout
+  const contentMode = "mobile";
 
-  // JavaScript to inject before page load to set proper viewport
-  // For tablets, we use a smaller initial scale to prevent zoomed-in appearance
+  // JavaScript to inject before page load to force mobile viewport
   const viewportScript = `
     (function() {
       var meta = document.querySelector('meta[name="viewport"]');
@@ -44,7 +43,7 @@ export function CheckoutScreen({ navigation, route }) {
         meta.name = 'viewport';
         document.head.appendChild(meta);
       }
-      meta.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
+      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
     })();
     true;
   `;
@@ -67,6 +66,7 @@ export function CheckoutScreen({ navigation, route }) {
       automaticallyAdjustContentInsets={false}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
+      userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
     />
   );
 
