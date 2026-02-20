@@ -117,23 +117,35 @@ export function LoginForm({ navigation, loading, disabled, onWixLogin }) {
       // If registration succeeded and returned a sessionToken, use it directly
       if (regResult?.data?.sessionToken) {
         console.log("Apple Sign-In: Registration succeeded, using sessionToken for silent login");
-        // The LoginHandler's login() uses email/password which calls auth.login()
-        // then silentLogin — but we already have a sessionToken from register
         await login(email, password);
       } else {
-        // Registration returned FAILURE or null — try login directly
-        // Account may already exist (re-registration) or may need approval
+        // Registration returned FAILURE or null — try login with generated password
         console.log("Apple Sign-In: Registration did not return sessionToken, trying login...");
         try {
           await login(email, password);
         } catch (loginErr) {
-          const errMsg = loginErr?.toString() || "";
-          console.warn("Apple Sign-In: Login failed after registration:", errMsg);
-          // Provide a user-friendly message instead of raw network error
-          throw new Error(
-            "Unable to sign in with Apple. Your account may need to be set up again. " +
-            "Please try signing in with your email and password, or contact support at info@graftonliquor.co.nz."
-          );
+          // Login with generated password failed — account exists with different password
+          // Fall back to Wix OAuth browser flow which handles existing accounts properly
+          console.log("Apple Sign-In: Generated password login failed, falling back to OAuth browser flow...");
+          try {
+            const result = await loginWithSystemBrowser();
+            if (result.success && result.tokens) {
+              console.log("Apple Sign-In: OAuth browser login succeeded");
+              await setSession(result.tokens);
+            } else if (result.cancelled) {
+              // User cancelled OAuth — silently ignore
+              return;
+            } else {
+              throw new Error(result.error || "OAuth login failed");
+            }
+          } catch (oauthErr) {
+            const oauthMsg = oauthErr?.toString() || "";
+            if (isCancelError(oauthMsg)) return;
+            console.warn("Apple Sign-In: OAuth fallback also failed:", oauthMsg);
+            throw new Error(
+              "Unable to sign in with Apple. Please try signing in with your email and password, or contact support at info@graftonliquor.co.nz."
+            );
+          }
         }
       }
 

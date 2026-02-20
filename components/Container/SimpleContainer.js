@@ -32,8 +32,7 @@ const defaultStyles = StyleSheet.create({
   },
   container: {
     flexDirection: "column",
-    height: "100%",
-    backgroundColor: theme.colors.primary,
     flex: 1,
+    backgroundColor: theme.colors.primary,
   },
 });
