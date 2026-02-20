@@ -191,8 +191,8 @@ async function sendWebhookNotification(activity) {
   const importantEvents = [
     ACTIVITY_TYPES.ADD_TO_CART,
     ACTIVITY_TYPES.CHECKOUT_START,
-    ACTIVITY_TYPES.APP_OPEN,
-    ACTIVITY_TYPES.FIRST_APP_OPEN, // New visitors
+    // ACTIVITY_TYPES.APP_OPEN, // Disabled - too frequent
+    ACTIVITY_TYPES.FIRST_APP_OPEN, // New visitors only
     ACTIVITY_TYPES.PRODUCT_VIEW, // For high-value products
   ];
   
