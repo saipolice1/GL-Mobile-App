@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useRef, useState, useEffect } from "react";
-import { Platform, Keyboard, View, KeyboardAvoidingView } from "react-native";
+import { Platform, Keyboard, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { SimpleContainer } from "../../../components/Container/SimpleContainer";
 import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIndicator";
@@ -93,15 +93,50 @@ export function CheckoutScreen({ navigation, route }) {
   }
   style.textContent =
     'html, body { background:#fff !important; overflow-x:hidden !important; }' +
-    'body { padding-bottom: calc(env(safe-area-inset-bottom) + 24px) !important; }' +
+    'body { min-height:120vh; padding-bottom: calc(env(safe-area-inset-bottom) + 24px) !important; }' +
     'form { padding-top: 8px !important; }' +
     'h1, h2, h3 { margin-top: 8px !important; }';
 
+  function getScroller() {
+    var selectors = [
+      '[data-hook="checkout-layout"]',
+      '[data-hook="checkout-root"]',
+      'main[role="main"]',
+      'div[data-hook="checkout-container"]'
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
+      if (el && el.scrollHeight > el.clientHeight) {
+        return el;
+      }
+    }
+    return window;
+  }
+
   function nudge() {
-    var y = window.scrollY || document.documentElement.scrollTop || 0;
+    // Normalize heights so nothing is stuck at a smaller 100vh
+    document.documentElement.style.height = 'auto';
+    document.documentElement.style.minHeight = '120vh';
+    document.body.style.height = 'auto';
+    document.body.style.minHeight = '120vh';
+
+    var scroller = getScroller();
     document.body.style.webkitTransform = 'translateZ(0)';
-    window.scrollTo(0, y + 1);
-    window.scrollTo(0, y);
+
+    if (scroller === window) {
+      var y = window.scrollY || document.documentElement.scrollTop || 0;
+      window.scrollTo(0, y + 1);
+      window.scrollTo(0, y);
+    } else {
+      var y2 = scroller.scrollTop || 0;
+      scroller.scrollTop = y2 + 1;
+      scroller.scrollTop = y2;
+    }
+
+    // Some layouts only refresh on resize
+    try {
+      window.dispatchEvent(new Event('resize'));
+    } catch (e) {}
   }
 
   document.addEventListener('focusin', function() {
@@ -124,38 +159,32 @@ export function CheckoutScreen({ navigation, route }) {
 true;
 `;
   const loadWebView = () => (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <View style={{ flex: 1, backgroundColor: '#fff' }}>
-        <WebView
-          style={[styles.container, { backgroundColor: '#fff' }]}
-          containerStyle={{ backgroundColor: '#fff' }}
-          setSupportMultipleWindows={false}
-          ref={webviewRef}
-          contentMode={contentMode}
-          source={{ uri: redirectSession?.fullUrl }}
-          onLoadEnd={() => setLoading(false)}
-          injectedJavaScriptBeforeContentLoaded={viewportScript}
-          injectedJavaScript={postLoadScript}
-          scalesPageToFit={Platform.OS !== 'ios'}
-          bounces={false}
-          scrollEnabled={true}
-          nestedScrollEnabled={true}
-          overScrollMode="never"
-          automaticallyAdjustContentInsets={false}
-          automaticallyAdjustsScrollIndicatorInsets={false}
-          contentInsetAdjustmentBehavior="never"
-          keyboardDisplayRequiresUserAction={false}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={true}
-          allowsBackForwardNavigationGestures={false}
-          startInLoadingState={false}
-        />
-      </View>
-    </KeyboardAvoidingView>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <WebView
+        style={[styles.container, { backgroundColor: '#fff' }]}
+        containerStyle={{ backgroundColor: '#fff' }}
+        setSupportMultipleWindows={false}
+        ref={webviewRef}
+        contentMode={contentMode}
+        source={{ uri: redirectSession?.fullUrl }}
+        onLoadEnd={() => setLoading(false)}
+        injectedJavaScriptBeforeContentLoaded={viewportScript}
+        injectedJavaScript={postLoadScript}
+        scalesPageToFit={Platform.OS !== 'ios'}
+        bounces={false}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        overScrollMode="never"
+        automaticallyAdjustContentInsets={false}
+        automaticallyAdjustsScrollIndicatorInsets={false}
+        contentInsetAdjustmentBehavior="never"
+        keyboardDisplayRequiresUserAction={false}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
+        allowsBackForwardNavigationGestures={false}
+        startInLoadingState={false}
+      />
+    </View>
   );
 
   return (
