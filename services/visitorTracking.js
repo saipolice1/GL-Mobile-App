@@ -92,37 +92,69 @@ export async function getMemberInfo() {
 
 // Cache location for the session (undefined = not yet fetched, null = denied/unavailable)
 let cachedLocation = undefined;
+let locationFetchInProgress = false;
 
 // Get location info (city/region/country) — requests permission on first call
 async function getLocationInfo() {
-  if (cachedLocation !== undefined) return cachedLocation;
+  // Return cached value if we have a successful result
+  if (cachedLocation !== undefined && cachedLocation !== null) {
+    return cachedLocation;
+  }
+  
+  // Avoid duplicate concurrent requests
+  if (locationFetchInProgress) {
+    return cachedLocation || null;
+  }
+  
+  locationFetchInProgress = true;
+  
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    // Check current permission status first (don't prompt if already denied)
+    const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+    
+    let status = existingStatus;
+    if (existingStatus === 'undetermined') {
+      // Only request if not yet asked
+      const result = await Location.requestForegroundPermissionsAsync();
+      status = result.status;
+    }
+    
     if (status !== 'granted') {
-      cachedLocation = null;
+      console.log('📍 Location permission not granted:', status);
+      locationFetchInProgress = false;
+      // Don't cache denial - allow retry if user changes settings
       return null;
     }
+    
     const location = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Lowest,
       maximumAge: 10 * 60 * 1000,
-      timeout: 5000,
+      timeout: 8000, // Increased timeout
     });
+    
     const [geocode] = await Location.reverseGeocodeAsync({
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
     });
-    cachedLocation = geocode
-      ? {
-          city: geocode.city || null,
-          region: geocode.region || null,
-          country: geocode.country || null,
-          postalCode: geocode.postalCode || null,
-        }
-      : null;
+    
+    if (geocode) {
+      cachedLocation = {
+        city: geocode.city || geocode.subregion || null,
+        region: geocode.region || null,
+        country: geocode.country || null,
+        postalCode: geocode.postalCode || null,
+      };
+      console.log('📍 Location resolved:', cachedLocation.city, cachedLocation.region);
+    } else {
+      cachedLocation = null;
+    }
+    
+    locationFetchInProgress = false;
     return cachedLocation;
   } catch (error) {
-    console.log('📍 Location not available:', error.message);
-    cachedLocation = null;
+    console.log('📍 Location error:', error.message);
+    locationFetchInProgress = false;
+    // Don't cache errors - allow retry
     return null;
   }
 }

@@ -4,6 +4,7 @@ import { HelpChatScreen } from "../../help/HelpChatScreen";
 import { WebViewScreen } from "../../webview/WebViewScreen";
 import { SignInView } from "./SignInView";
 import { MemberView } from "./MemberView";
+import { OrderDetailsScreen } from "../../store/orders/OrderDetailsScreen";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { wixCient } from "../../../authentication/wixClient";
 import { useWixSession } from "../../../authentication/session";
@@ -52,6 +53,7 @@ export const MemberAreaScreen = () => {
       <Stack.Screen name="MemberAreaMain" component={MemberAreaMain} />
       <Stack.Screen name={Routes.HelpChat} component={HelpChatScreen} />
       <Stack.Screen name={Routes.WebView} component={WebViewScreen} />
+      <Stack.Screen name={Routes.OrderDetails} component={OrderDetailsScreen} />
     </Stack.Navigator>
   );
 };

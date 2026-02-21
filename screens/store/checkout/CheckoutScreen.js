@@ -1,18 +1,11 @@
 import * as React from "react";
 import { useRef, useState, useEffect } from "react";
-import { Platform, Dimensions, Keyboard, View, KeyboardAvoidingView } from "react-native";
+import { Platform, Keyboard, View, KeyboardAvoidingView } from "react-native";
 import { WebView } from "react-native-webview";
 import { SimpleContainer } from "../../../components/Container/SimpleContainer";
 import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIndicator";
 import { styles } from "../../../styles/store/checkout/checkout-screen/styles";
 import Routes from "../../../routes/routes";
-
-// Check if device is a tablet (iPad)
-const isTablet = () => {
-  const { width, height } = Dimensions.get('window');
-  const screenSize = Math.max(width, height);
-  return Platform.OS === 'ios' && screenSize >= 768;
-};
 
 export function CheckoutScreen({ navigation, route }) {
   const { redirectSession, cameFrom } = route?.params || {};
@@ -29,54 +22,50 @@ export function CheckoutScreen({ navigation, route }) {
   };
 
   const [loading, setLoading] = useState(true);
-  const [containerHeight, setContainerHeight] = useState(null);
   const webviewRef = useRef(null);
 
-  // Listen for keyboard to force native container re-layout
+  // Keyboard show/hide: inject scroll nudge (no container resize!)
   useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      // Let natural keyboard avoidance work
-    });
-    
+    const nudgeScript = `
+      (function() {
+        function nudge() {
+          var y = window.scrollY || document.documentElement.scrollTop || 0;
+          document.body.style.webkitTransform = 'translateZ(0)';
+          window.scrollTo(0, y + 1);
+          window.scrollTo(0, y);
+        }
+        setTimeout(nudge, 60);
+        setTimeout(nudge, 250);
+        setTimeout(nudge, 600);
+      })();
+      true;
+    `;
+
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const hideSub = Keyboard.addListener(hideEvent, () => {
-      // Force native container to recalculate by briefly changing height
-      // This triggers a re-layout cycle
-      setContainerHeight('99.9%');
-      setTimeout(() => {
-        setContainerHeight(null); // Reset to flex
-      }, 50);
-      
-      // Also inject JS to fix web content
-      if (webviewRef.current) {
-        webviewRef.current.injectJavaScript(`
-          (function() {
-            document.body.style.height = '100%';
-            document.documentElement.style.height = '100%';
-            void document.body.offsetHeight;
-            setTimeout(function() {
-              document.body.style.height = 'auto';
-              document.body.style.minHeight = '100vh';
-              window.scrollTo(0, document.documentElement.scrollTop || document.body.scrollTop);
-            }, 50);
-          })();
-          true;
-        `);
-      }
+      webviewRef.current?.injectJavaScript(nudgeScript);
     });
-    
+
+    // Also nudge on keyboard show (iOS) to handle scroll stuck issues
+    let showSub;
+    if (Platform.OS === "ios") {
+      showSub = Keyboard.addListener("keyboardWillShow", () => {
+        setTimeout(() => {
+          webviewRef.current?.injectJavaScript(nudgeScript);
+        }, 200);
+      });
+    }
+
     return () => {
-      showSub.remove();
       hideSub.remove();
+      showSub?.remove();
     };
   }, []);
 
-  // Always use mobile content mode so the Wix checkout renders in single-column mobile layout
+  // Always use mobile content mode
   const contentMode = "mobile";
 
-  // JavaScript to inject before page load to ensure proper viewport and layout
+  // Viewport script with viewport-fit=cover
   const viewportScript = `
     (function() {
       var meta = document.querySelector('meta[name="viewport"]');
@@ -85,99 +74,83 @@ export function CheckoutScreen({ navigation, route }) {
         meta.name = 'viewport';
         document.head.appendChild(meta);
       }
-      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
     })();
     true;
   `;
 
-  // Post-load script to fix layout issues: ensure body fills viewport and
-  // scroll to top so the page is fully visible without manual scrolling
+  // Post-load script: safe-area padding + reflow nudge on focus transitions
   const postLoadScript = `
-    (function() {
-      document.body.style.minHeight = '100vh';
-      document.body.style.overflow = 'auto';
-      document.body.style.webkitOverflowScrolling = 'touch';
-      document.documentElement.style.height = '100%';
-      
-      // Move content up by reducing top padding/margin
-      var style = document.createElement('style');
-      style.textContent = \`
-        body { padding-top: 0 !important; margin-top: 0 !important; }
-        main, [data-hook="checkout-page"], #root > div:first-child { 
-          padding-top: 0 !important; 
-          margin-top: 0 !important; 
-        }
-        /* Reduce excessive spacing in Wix checkout */
-        form { padding-top: 8px !important; }
-        h1, h2, h3 { margin-top: 8px !important; }
-      \`;
-      document.head.appendChild(style);
-      window.scrollTo(0, 0);
+(function() {
+  if (window.__RN_CHECKOUT_FIXES_INSTALLED__) return true;
+  window.__RN_CHECKOUT_FIXES_INSTALLED__ = true;
 
-      // Detect keyboard via visualViewport API and fix height on resize
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', function() {
-          // When viewport height returns to full, force body layout
-          document.body.style.minHeight = window.visualViewport.height + 'px';
-          setTimeout(function() {
-            document.body.style.minHeight = '100vh';
-          }, 300);
-        });
-      }
+  var style = document.getElementById('rn-checkout-fixes');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'rn-checkout-fixes';
+    document.head.appendChild(style);
+  }
+  style.textContent =
+    'html, body { background:#fff !important; overflow-x:hidden !important; }' +
+    'body { padding-bottom: calc(env(safe-area-inset-bottom) + 24px) !important; }' +
+    'form { padding-top: 8px !important; }' +
+    'h1, h2, h3 { margin-top: 8px !important; }';
 
-      // Fix keyboard dismiss: when inputs blur, trigger reflow
-      document.addEventListener('focusout', function() {
-        setTimeout(function() {
-          document.body.style.height = '100%';
-          void document.body.offsetHeight;
-          document.body.style.height = 'auto';
-          document.body.style.minHeight = '100vh';
-          window.scrollTo(0, document.documentElement.scrollTop);
-        }, 100);
-      });
-    })();
-    true;
-  `;
+  function nudge() {
+    var y = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.webkitTransform = 'translateZ(0)';
+    window.scrollTo(0, y + 1);
+    window.scrollTo(0, y);
+  }
 
-  // User agent: on iPad, send mobile Safari UA to get mobile layout from Wix
-  const mobileUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  document.addEventListener('focusin', function() {
+    setTimeout(nudge, 60);
+    setTimeout(nudge, 250);
+    setTimeout(nudge, 500);
+  }, true);
 
-  // Container style - uses height hack to force re-layout after keyboard dismiss
-  const containerStyle = containerHeight 
-    ? { height: containerHeight, flex: undefined }
-    : { flex: 1 };
+  document.addEventListener('focusout', function() {
+    setTimeout(nudge, 60);
+    setTimeout(nudge, 250);
+    setTimeout(nudge, 600);
+  }, true);
 
+  setTimeout(nudge, 300);
+  window.scrollTo(0, 0);
+
+  return true;
+})();
+true;
+`;
   const loadWebView = () => (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <View style={containerStyle}>
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
         <WebView
-          style={styles.container}
+          style={[styles.container, { backgroundColor: '#fff' }]}
+          containerStyle={{ backgroundColor: '#fff' }}
           setSupportMultipleWindows={false}
           ref={webviewRef}
           contentMode={contentMode}
           source={{ uri: redirectSession?.fullUrl }}
-          goBack={() => navigation.navigate(Routes.Cart)}
-          onLoad={() => {
-            setLoading(false);
-          }}
+          onLoadEnd={() => setLoading(false)}
           injectedJavaScriptBeforeContentLoaded={viewportScript}
           injectedJavaScript={postLoadScript}
-          scalesPageToFit={true}
+          scalesPageToFit={Platform.OS !== 'ios'}
           bounces={false}
           scrollEnabled={true}
           nestedScrollEnabled={true}
-          overScrollMode={"never"}
-          automaticallyAdjustContentInsets={true}
-          automaticallyAdjustsScrollIndicatorInsets={true}
-          contentInsetAdjustmentBehavior="automatic"
+          overScrollMode="never"
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
+          contentInsetAdjustmentBehavior="never"
           keyboardDisplayRequiresUserAction={false}
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={true}
-          userAgent={mobileUA}
           allowsBackForwardNavigationGestures={false}
           startInLoadingState={false}
         />

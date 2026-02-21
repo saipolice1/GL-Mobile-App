@@ -13,6 +13,7 @@ const Routes = {
   Help: "Help",
   HelpChat: "HelpChat",
   WebView: "WebView",
+  OrderDetails: "OrderDetails",
 };
 
 export default Routes;

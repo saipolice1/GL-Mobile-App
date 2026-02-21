@@ -50,6 +50,17 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
       }
     });
 
+    // Handle cold-start: app was killed and user tapped a notification
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response) {
+        console.log('Cold-start notification:', response);
+        const data = response.notification.request.content.data;
+        if (onNotificationTap) {
+          onNotificationTap(data);
+        }
+      }
+    });
+
     return () => {
       // Clean up listeners (safely handle Expo Go where removeNotificationSubscription may not exist)
       try {

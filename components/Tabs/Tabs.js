@@ -16,8 +16,33 @@ import { wixCient } from "../../authentication/wixClient";
 const ScreenHeight = Dimensions.get("window").height;
 const ScreenWidth = Dimensions.get("window").width;
 
+// Screens where the tab bar should be hidden
+const HIDDEN_TAB_SCREENS = ['Checkout', 'CheckoutThankYou'];
+
+// Check if any nested navigator is showing a screen that should hide tabs
+function shouldHideTabBar(state) {
+  if (!state) return false;
+  
+  const activeRoute = state.routes[state.index];
+  
+  // Check if this route's name should hide tabs
+  if (HIDDEN_TAB_SCREENS.includes(activeRoute.name)) {
+    return true;
+  }
+  
+  // Check nested navigators (e.g., Cart tab has a stack with Checkout inside)
+  if (activeRoute.state) {
+    return shouldHideTabBar(activeRoute.state);
+  }
+  
+  return false;
+}
+
 export const TabBar = ({ state, descriptors, navigation }) => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  
+  // Check if we should hide tabs (e.g., during checkout)
+  const hideTabBar = shouldHideTabBar(state);
   
   // Fetch cart to get item count
   const { data: currentCart } = useQuery({
@@ -65,7 +90,7 @@ export const TabBar = ({ state, descriptors, navigation }) => {
     <View
       style={{
         flexDirection: "row",
-        display: keyboardVisible ? "none" : "flex",
+        display: keyboardVisible || hideTabBar ? "none" : "flex",
       }}
     >
       {state.routes.map((route, index) => {

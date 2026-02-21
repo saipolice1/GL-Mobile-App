@@ -22,6 +22,8 @@ import { styles } from "../../../styles/members/styles";
 import { usePrice } from "../../store/price";
 import Routes from "../../../routes/routes";
 import { WIX_PAGES } from "../../webview/WebViewScreen";
+import { useNotifications } from "../../../context/NotificationContext";
+import { registerPushTokenWithWix } from "../../../services/notifications";
 
 // Custom Accordion for MemberView
 const MemberAccordion = ({ title, children, defaultExpanded = false }) => {
@@ -149,7 +151,20 @@ const MemberForm = ({ member }) => {
   );
 };
 
-const Orders = () => {
+const STATUS_LABELS = {
+  FULFILLED: 'Delivered',
+  NOT_FULFILLED: 'Order Placed',
+  PARTIALLY_FULFILLED: 'Partially Shipped',
+  CANCELLED: 'Cancelled',
+};
+const STATUS_COLORS = {
+  FULFILLED: '#10B981',
+  NOT_FULFILLED: '#F59E0B',
+  PARTIALLY_FULFILLED: '#3B82F6',
+  CANCELLED: '#EF4444',
+};
+
+const Orders = ({ navigation }) => {
   const { session } = useWixSession();
 
   const myOrdersQuery = useQuery({
@@ -159,90 +174,73 @@ const Orders = () => {
         `https://www.wixapis.com/stores/v2/orders/query`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: {},
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: {} }),
         },
       );
       return res.json();
     },
   });
 
-  if (myOrdersQuery.isLoading) {
-    return <LoadingIndicator />;
-  }
+  if (myOrdersQuery.isLoading) return <LoadingIndicator />;
+  if (myOrdersQuery.isError) return <ErrorView message={myOrdersQuery.error.message} />;
 
-  if (myOrdersQuery.isError) {
-    return <ErrorView message={myOrdersQuery.error.message} />;
-  }
+  const orders = myOrdersQuery.data?.orders || [];
 
   return (
     <MemberAccordion title="My Orders" defaultExpanded={false}>
-      {myOrdersQuery.data.orders.map((order) => {
+      {orders.map((order) => {
+        const statusColor = STATUS_COLORS[order.fulfillmentStatus] || theme.colors.textMuted;
+        const statusLabel = STATUS_LABELS[order.fulfillmentStatus] || order.fulfillmentStatus;
         return (
-          <View key={order.id} style={{ marginBottom: 16 }}>
-            <RNText style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text, marginBottom: 8 }}>
-              Order #{order.number}
-            </RNText>
-            <RNText style={{ color: theme.colors.textSecondary, marginBottom: 4 }}>
-              Date: {format(new Date(order.dateCreated), "MMM dd, yyyy")}
-            </RNText>
-            <RNText style={{ color: theme.colors.textSecondary, marginBottom: 4 }}>
-              Status: {
-                {
-                  FULFILLED: "Fulfilled",
-                  NOT_FULFILLED: "Not Fulfilled",
-                  PARTIALLY_FULFILLED: "Partially Fulfilled",
-                  CANCELLED: "Cancelled",
-                }[order.fulfillmentStatus]
-              }
-            </RNText>
-            <RNText style={{ color: theme.colors.textSecondary, marginBottom: 8 }}>
-              Payment: {
-                {
-                  PAID: "Paid",
-                  NOT_PAID: "Not Paid",
-                  PARTIALLY_PAID: "Partially Paid",
-                  REFUNDED: "Refunded",
-                }[order.paymentStatus]
-              }
-            </RNText>
-            
-            {/* Order Items */}
-            <View style={{ backgroundColor: theme.colors.surfaceVariant, borderRadius: 8, padding: 12, marginVertical: 8 }}>
-              <RNText style={{ fontWeight: '600', marginBottom: 8, color: theme.colors.text }}>Items:</RNText>
-              {order.lineItems.map((item, index) => (
-                <View key={item.id + index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <TouchableOpacity
+            key={order.id}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate(Routes.OrderDetails, { orderId: order.id, orderNumber: order.number })}
+            style={{ marginBottom: 12 }}
+          >
+            <View style={{ backgroundColor: theme.colors.background, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, padding: 14 }}>
+              {/* Row 1: Order # + Status */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <RNText style={{ fontSize: 15, fontWeight: '700', color: theme.colors.text }}>Order #{order.number}</RNText>
+                <RNText style={{ fontSize: 12, fontWeight: '600', color: statusColor }}>{statusLabel}</RNText>
+              </View>
+              {/* Row 2: Date */}
+              <RNText style={{ color: theme.colors.textMuted, fontSize: 13, marginBottom: 10 }}>
+                {format(new Date(order.dateCreated), "MMM dd, yyyy")}
+              </RNText>
+              {/* First item thumbnail + name */}
+              {order.lineItems?.length > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                   <Image
-                    source={{ uri: item.mediaItem?.url ?? 'https://via.placeholder.com/50' }}
-                    style={{ width: 50, height: 50, borderRadius: 4 }}
+                    source={{ uri: order.lineItems[0].mediaItem?.url ?? 'https://via.placeholder.com/40' }}
+                    style={{ width: 40, height: 40, borderRadius: 6, backgroundColor: theme.colors.border }}
                   />
-                  <View style={{ marginLeft: 12, flex: 1 }}>
-                    <RNText style={{ color: theme.colors.text, fontWeight: '500' }} numberOfLines={1}>
-                      {item.name}
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <RNText style={{ color: theme.colors.text, fontWeight: '500', fontSize: 13 }} numberOfLines={1}>
+                      {order.lineItems[0].name}
                     </RNText>
-                    <RNText style={{ color: theme.colors.textMuted, fontSize: 13 }}>
-                      Qty: {item.quantity}
-                    </RNText>
+                    {order.lineItems.length > 1 && (
+                      <RNText style={{ color: theme.colors.textMuted, fontSize: 12 }}>+{order.lineItems.length - 1} more item{order.lineItems.length > 2 ? 's' : ''}</RNText>
+                    )}
                   </View>
                 </View>
-              ))}
+              )}
+              {/* Row 3: Total + chevron */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <RNText style={{ fontSize: 15, fontWeight: '700', color: theme.colors.text }}>
+                  {order.currency} {Number.parseFloat(order.totals?.total || 0).toFixed(2)}
+                </RNText>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <RNText style={{ fontSize: 13, color: theme.colors.accent, marginRight: 4 }}>View details</RNText>
+                  <Ionicons name="chevron-forward" size={16} color={theme.colors.accent} />
+                </View>
+              </View>
             </View>
-            
-            <RNText style={{ fontSize: 16, fontWeight: '700', color: theme.colors.accent, marginTop: 4 }}>
-              Total: {usePrice({
-                amount: Number.parseFloat(order.totals.total),
-                currencyCode: order.currency,
-              })}
-            </RNText>
-            <Divider style={{ marginTop: 16 }} />
-          </View>
+          </TouchableOpacity>
         );
       })}
-      {!myOrdersQuery.data.orders.length && (
+      {!orders.length && (
         <RNText style={{ color: theme.colors.textMuted, textAlign: 'center', paddingVertical: 20 }}>
           You have no orders yet.
         </RNText>
@@ -255,6 +253,7 @@ export const MemberView = ({ navigation }) => {
   const queryClient = useQueryClient();
   const { newVisitorSession, session } = useWixSession();
   const { firstName, lastName, phone, updateContact, clearContact, loadContactForMember } = useMemberHandler();
+  const { expoPushToken } = useNotifications();
   const [visibleMenu, setVisibleMenu] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -315,6 +314,11 @@ export const MemberView = ({ navigation }) => {
         console.log('   Final:', enrichedMember.contact);
 
         setCurrentMember(enrichedMember);
+        
+        // Register push token with Wix for order notifications
+        if (member._id && expoPushToken) {
+          registerPushTokenWithWix(member._id, expoPushToken);
+        }
         setError(null);
       } catch (err) {
         console.error('Error fetching member:', err);
@@ -325,7 +329,7 @@ export const MemberView = ({ navigation }) => {
     };
 
     fetchCurrentMember();
-  }, [session?.refreshToken, loadContactForMember]);
+  }, [session?.refreshToken, loadContactForMember, expoPushToken]);
 
   const updateMemberMutation = useMutation({
     mutationFn: async () => {
@@ -553,7 +557,7 @@ export const MemberView = ({ navigation }) => {
           </Text>
         </View>
         <View style={{ marginTop: 20, width: "100%" }}>
-          <Orders />
+          <Orders navigation={navigation} />
         </View>
         <View style={styles.memberDetails}>
           <Text style={styles.memberDetailsTitle}>My Account</Text>

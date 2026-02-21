@@ -69,24 +69,45 @@ function App() {
   // System fonts are used - no custom font loading needed
   const clientId = process.env.EXPO_PUBLIC_WIX_CLIENT_ID || "";
   const navigationRef = React.useRef(null);
+  // Store a deep-link action to execute once NavigationContainer is ready
+  const pendingNavigationRef = React.useRef(null);
 
   // Track app open for Wix visitor alerts
   useEffect(() => {
     trackAppOpen();
   }, []);
 
+  // Navigate to Order Details from anywhere in the app
+  const navigateToOrder = React.useCallback((orderId, orderNumber) => {
+    if (!navigationRef.current) return;
+    navigationRef.current.navigate(Routes.Profile, {
+      screen: Routes.OrderDetails,
+      params: { orderId, orderNumber },
+    });
+  }, []);
+
   // Handle notification taps - navigate to appropriate screen
   const handleNotificationTap = React.useCallback((data) => {
-    if (!navigationRef.current) return;
-    
     if (data?.type === 'order_update') {
-      // Navigate to order details or cart
-      navigationRef.current.navigate(Routes.Cart);
+      const { orderId, orderNumber } = data;
+      if (navigationRef.current?.isReady()) {
+        navigateToOrder(orderId, orderNumber);
+      } else {
+        // App not mounted yet - store and execute on ready
+        pendingNavigationRef.current = () => navigateToOrder(orderId, orderNumber);
+      }
     } else if (data?.type === 'promo') {
-      // Navigate to home or products
-      navigationRef.current.navigate(Routes.Home);
+      navigationRef.current?.navigate(Routes.Home);
     } else if (data?.type === 'cart_reminder') {
-      navigationRef.current.navigate(Routes.Cart);
+      navigationRef.current?.navigate(Routes.Cart);
+    }
+  }, [navigateToOrder]);
+
+  // Consume any pending deep link once NavigationContainer is ready
+  const handleNavigationReady = React.useCallback(() => {
+    if (pendingNavigationRef.current) {
+      pendingNavigationRef.current();
+      pendingNavigationRef.current = null;
     }
   }, []);
 
@@ -101,6 +122,7 @@ function App() {
                 <NavigationContainer
                   ref={navigationRef}
                   theme={GraftonNavigationTheme}
+                  onReady={handleNavigationReady}
                   linking={{
                     prefixes: [Linking.createURL("/")],
                     config: {
@@ -113,6 +135,11 @@ function App() {
                             Products: "products",
                             Product: "products/product",
                             Collections: "collections",
+                          },
+                        },
+                        Account: {
+                          screens: {
+                            OrderDetails: "orders/:orderId",
                           },
                         },
                       },

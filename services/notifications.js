@@ -205,3 +205,37 @@ export async function sendCartReminderNotification(itemCount) {
     },
   });
 }
+
+// Register push token with Wix backend for order notifications
+export async function registerPushTokenWithWix(memberId, pushToken) {
+  if (!memberId || !pushToken) {
+    console.log('⚠️ Cannot register push token: missing memberId or pushToken');
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://www.graftonliquor.co.nz/_functions/registerPushToken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        memberId,
+        pushToken,
+        platform: Platform.OS,
+      }),
+    });
+
+    if (response.ok) {
+      console.log('✅ Push token registered with Wix for member:', memberId);
+      return true;
+    } else {
+      const error = await response.text();
+      console.log('❌ Failed to register push token:', error);
+      return false;
+    }
+  } catch (error) {
+    console.log('❌ Error registering push token:', error.message);
+    return false;
+  }
+}
