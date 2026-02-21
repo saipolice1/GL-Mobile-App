@@ -3,6 +3,7 @@ import "./polyfills";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 import * as React from "react";
 import { useEffect } from "react";
@@ -21,6 +22,8 @@ import { theme as appTheme } from "./styles/theme";
 import { NotificationProvider } from "./context/NotificationContext";
 import { trackAppOpen } from "./services/visitorTracking";
 import Routes from "./routes/routes";
+import { ForceUpdateModal } from "./components/ForceUpdate/ForceUpdateModal";
+import { fetchAppConfig, isVersionBelowMinimum } from "./utils/versionCheck";
 
 // Initialize WebBrowser auth session on app startup
 initializeAuthSession();
@@ -77,6 +80,20 @@ function App() {
     trackAppOpen();
   }, []);
 
+  // ── Force-update gate ──────────────────────────────────────────────────────
+  const [updateConfig, setUpdateConfig] = React.useState(null);
+
+  useEffect(() => {
+    fetchAppConfig().then((config) => {
+      if (!config) return; // endpoint unreachable — fail open
+      const currentVersion = Constants.expoConfig?.version ?? '0.0.0';
+      if (isVersionBelowMinimum(currentVersion, config.minimumVersion)) {
+        setUpdateConfig(config);
+      }
+    });
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────────
+
   // Navigate to Order Details from anywhere in the app
   const navigateToOrder = React.useCallback((orderId, orderNumber) => {
     if (!navigationRef.current) return;
@@ -113,6 +130,12 @@ function App() {
 
   return (
     <PaperProvider theme={GraftonPaperTheme}>
+      {/* Force-update gate — renders above everything else when active */}
+      <ForceUpdateModal
+        visible={!!updateConfig}
+        iosUrl={updateConfig?.iosUrl}
+        androidUrl={updateConfig?.androidUrl}
+      />
       <QueryClientProvider client={queryClient}>
         <NotificationProvider onNotificationTap={handleNotificationTap}>
           <WixSessionProvider clientId={clientId}>
