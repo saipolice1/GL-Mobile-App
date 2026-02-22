@@ -167,8 +167,18 @@ true;
         ref={webviewRef}
         contentMode={contentMode}
         source={{ uri: redirectSession?.fullUrl }}
-        onLoadEnd={() => setLoading(false)}
-        injectedJavaScriptBeforeContentLoaded={viewportScript}
+        onLoadEnd={() => setLoading(false)}          onShouldStartLoadWithRequest={(request) => {
+            const url = request.url || '';
+            // Intercept Wix cart URL — navigate back to native cart instead
+            const isCartUrl =
+              /graftonliquor\.co\.nz\/cart(\?.*)?$/.test(url) ||
+              /graftonliquor\.co\.nz\/store\/cart(\?.*)?$/.test(url);
+            if (isCartUrl) {
+              navigation.navigate(Routes.Cart);
+              return false; // block WebView from following the link
+            }
+            return true;
+          }}        injectedJavaScriptBeforeContentLoaded={viewportScript}
         injectedJavaScript={postLoadScript}
         scalesPageToFit={Platform.OS !== 'ios'}
         bounces={false}
