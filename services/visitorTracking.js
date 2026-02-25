@@ -126,11 +126,10 @@ async function getLocationInfo() {
       return null;
     }
     
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Lowest,
-      maximumAge: 10 * 60 * 1000,
-      timeout: 8000, // Increased timeout
-    });
+    const location = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Location timeout')), 8000)),
+    ]);
     
     const [geocode] = await Location.reverseGeocodeAsync({
       latitude: location.coords.latitude,
@@ -223,9 +222,9 @@ async function sendWebhookNotification(activity) {
   const importantEvents = [
     ACTIVITY_TYPES.ADD_TO_CART,
     ACTIVITY_TYPES.CHECKOUT_START,
-    // ACTIVITY_TYPES.APP_OPEN, // Disabled - too frequent
-    ACTIVITY_TYPES.FIRST_APP_OPEN, // New visitors only
-    ACTIVITY_TYPES.PRODUCT_VIEW, // For high-value products
+    ACTIVITY_TYPES.APP_OPEN,
+    ACTIVITY_TYPES.FIRST_APP_OPEN,
+    ACTIVITY_TYPES.PRODUCT_VIEW,
   ];
   
   if (!importantEvents.includes(activity.type)) {

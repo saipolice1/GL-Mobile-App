@@ -188,6 +188,7 @@ true;
         automaticallyAdjustContentInsets={false}
         automaticallyAdjustsScrollIndicatorInsets={false}
         contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         keyboardDisplayRequiresUserAction={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={true}
