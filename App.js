@@ -26,10 +26,8 @@ import Routes from "./routes/routes";
 import { ForceUpdateModal } from "./components/ForceUpdate/ForceUpdateModal";
 import { fetchAppConfig, isVersionBelowMinimum } from "./utils/versionCheck";
 
-// Crash reporting — set EXPO_PUBLIC_SENTRY_DSN in your EAS environment variables
 Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  dsn: "https://1bab95c91db12ee3fc36ab9a8775a677@o4511035626160128.ingest.us.sentry.io/4511035635400704",
   tracesSampleRate: 0.2,
 });
 
