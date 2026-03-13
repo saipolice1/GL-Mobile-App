@@ -63,7 +63,7 @@ export function CheckoutThankYouScreen({ route, navigation }) {
             Order ID: {route.params.orderId}
           </Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate(Routes.home)}
+            onPress={() => navigation.navigate(Routes.Home)}
             style={{
               marginTop: 40,
               backgroundColor: theme.colors.text,

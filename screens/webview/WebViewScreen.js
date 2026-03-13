@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -188,6 +189,7 @@ export const WebViewScreen = ({ navigation, route }) => {
         // Enable cookies for login persistence
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         // Loading indicator
         renderLoading={() => (
           <View style={styles.loadingContainer}>

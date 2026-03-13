@@ -10,6 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -117,6 +118,7 @@ const ChatModal = ({ visible, onClose }) => {
             javaScriptEnabled={true}
             domStorageEnabled={true}
             startInLoadingState={false}
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           />
         </View>
       </SafeAreaView>

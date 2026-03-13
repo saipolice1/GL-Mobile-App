@@ -9,44 +9,51 @@ import Routes from "../../../routes/routes";
 
 export function CheckoutScreen({ navigation, route }) {
   const { redirectSession, cameFrom } = route?.params || {};
+
+  // All hooks must be declared before any early return
+  const [loading, setLoading] = useState(true);
+  const webviewRef = useRef(null);
+
+  const goBack = () => {
+    webviewRef.current?.stopLoading();
+    if (cameFrom && cameFrom !== "CartView") {
+      navigation.navigate(cameFrom);
+    } else {
+      navigation.goBack();
+    }
+  };
+
   if (!redirectSession) {
     navigation.navigate(Routes.Cart);
     return null;
   }
-
-  const goBack = () => {
-    webviewRef.current.stopLoading();
-    if (cameFrom !== "CartView") navigation.replace("CartView");
-    navigation.goBack();
-    navigation.navigate(cameFrom);
-  };
-
-  const [loading, setLoading] = useState(true);
-  const webviewRef = useRef(null);
 
   // Keyboard show/hide: inject scroll nudge (no container resize!)
   useEffect(() => {
     const nudgeScript = `
       (function() {
         function nudge() {
-          var y = window.scrollY || document.documentElement.scrollTop || 0;
+          document.documentElement.style.height = 'auto';
+          document.body.style.height = 'auto';
           document.body.style.webkitTransform = 'translateZ(0)';
+          try { window.dispatchEvent(new Event('resize')); } catch(e) {}
+          var y = window.scrollY || document.documentElement.scrollTop || 0;
           window.scrollTo(0, y + 1);
           window.scrollTo(0, y);
         }
         setTimeout(nudge, 60);
-        setTimeout(nudge, 250);
-        setTimeout(nudge, 600);
+        setTimeout(nudge, 300);
+        setTimeout(nudge, 700);
       })();
       true;
     `;
 
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    // Use keyboardDidHide so the nudge fires after the animation fully completes
+    const hideEvent = "keyboardDidHide";
     const hideSub = Keyboard.addListener(hideEvent, () => {
       webviewRef.current?.injectJavaScript(nudgeScript);
     });
 
-    // Also nudge on keyboard show (iOS) to handle scroll stuck issues
     let showSub;
     if (Platform.OS === "ios") {
       showSub = Keyboard.addListener("keyboardWillShow", () => {
@@ -169,6 +176,7 @@ true;
         source={{ uri: redirectSession?.fullUrl }}
         onLoadEnd={() => setLoading(false)}          onShouldStartLoadWithRequest={(request) => {
             const url = request.url || '';
+
             // Intercept Wix cart URL — navigate back to native cart instead
             const isCartUrl =
               /graftonliquor\.co\.nz\/cart(\?.*)?$/.test(url) ||
@@ -177,6 +185,18 @@ true;
               navigation.navigate(Routes.Cart);
               return false; // block WebView from following the link
             }
+
+            // Intercept the thank-you deep link after external payment (e.g. AfterPay).
+            // When Wix redirects to the thankYouPageUrl (graftonliquor:// or exp:// in dev),
+            // the WebView cannot render a deep link as a web page and shows an error.
+            // We catch it here and navigate natively instead.
+            if (url.includes('/store/checkout/thank-you')) {
+              const orderIdMatch = url.match(/[?&]orderId=([^&]+)/);
+              const orderId = orderIdMatch ? decodeURIComponent(orderIdMatch[1]) : undefined;
+              navigation.navigate(Routes.CheckoutThankYou, { orderId });
+              return false;
+            }
+
             return true;
           }}        injectedJavaScriptBeforeContentLoaded={viewportScript}
         injectedJavaScript={postLoadScript}
