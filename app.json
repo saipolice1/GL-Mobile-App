@@ -42,9 +42,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Grafton Liquor to use your location to show relevant delivery options and product availability in your area.",
-          "locationAlwaysAndWhenInUsePermission": "Allow Grafton Liquor to use your location for delivery tracking.",
-          "isAndroidBackgroundLocationEnabled": true
+          "locationWhenInUsePermission": "Allow Grafton Liquor to use your location to show relevant delivery options and product availability in your area."
         }
       ],
       [
