@@ -42,8 +42,7 @@ function withWebViewKeyboardFix(config) {
     if (!alreadyAdded) {
       xcodeProject.addSourceFile(
         filePath,
-        {},
-        xcodeProject.getFirstTarget().uuid
+        { target: xcodeProject.getFirstTarget().uuid }
       );
     }
 
