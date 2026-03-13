@@ -30,11 +30,9 @@ import { ProductScreen } from "../product/ProductScreen";
 import { ProductModal } from "../../../components/ProductModal/ProductModal";
 import { theme } from "../../../styles/theme";
 import { IS_TABLET, rs } from "../../../utils/responsive";
+import { SAME_DAY_MIN, FREE_DELIVERY_MIN } from "../../../constants/delivery";
 
 const Stack = createNativeStackNavigator();
-
-const SAME_DAY_MIN = 80;
-const FREE_DELIVERY_MIN = 200;
 
 // Animated Checkout Button with gradient and pulse
 const AnimatedCheckoutButton = ({ onPress, disabled, loading, subtotal }) => {

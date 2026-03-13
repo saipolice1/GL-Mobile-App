@@ -24,7 +24,7 @@ import { NotificationsModal } from '../../components/Notifications/Notifications
 import { ViewAllModal } from '../../components/ViewAllModal/ViewAllModal';
 import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
-import { getBestSellers, listRecommendationAlgorithms } from '../../utils/wixRecommendations';
+import { getBestSellers, getBestSellersAlgorithmId, getRecommendations } from '../../utils/wixRecommendations';
 import { 
   getCachedProducts, 
   cacheProducts, 
@@ -87,10 +87,7 @@ export const HomeScreen = ({ navigation }) => {
         return null;
       }
     },
-    // Real-time cart updates
-    refetchInterval: 30000, // Refetch every 30 seconds
-    refetchIntervalInBackground: false,
-    staleTime: 25000,
+    staleTime: 60000,
   });
 
   // Calculate cart total
@@ -525,7 +522,6 @@ export const HomeScreen = ({ navigation }) => {
             onViewAll={handleViewAll}
             isLoading={isLoadingProducts}
             onScroll={handleScroll}
-            trendingProductIds={trendingProductIds}
             trendingProductIds={trendingProductIds}
             ListHeaderComponent={
               <View>

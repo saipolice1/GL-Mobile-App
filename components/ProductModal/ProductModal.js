@@ -168,7 +168,7 @@ export const ProductModal = ({
         {
           quantity,
           catalogReference: {
-            appId: '1380b703-ce81-ff05-f115-39571d94dfcd',
+            appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e',
             catalogItemId: currentProduct._id,
             options: Object.keys(selectedOptions).length > 0 
               ? { options: selectedOptions } 
@@ -183,7 +183,7 @@ export const ProductModal = ({
           lineItems.push({
             quantity: qty,
             catalogReference: {
-              appId: '1380b703-ce81-ff05-f115-39571d94dfcd',
+              appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e',
               catalogItemId: productId,
             },
           });
@@ -196,7 +196,7 @@ export const ProductModal = ({
           lineItems.push({
             quantity: qty,
             catalogReference: {
-              appId: '1380b703-ce81-ff05-f115-39571d94dfcd',
+              appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e',
               catalogItemId: productId,
             },
           });

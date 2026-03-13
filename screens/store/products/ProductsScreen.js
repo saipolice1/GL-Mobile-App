@@ -21,8 +21,25 @@ export function ProductsScreen({ navigation, route }) {
   } = route.params.items;
 
   const productsResponse = useQuery({
-    queryKey: ["products"],
-    queryFn: () => wixCient.products.queryProducts().find(),
+    queryKey: ["products", CollectionId],
+    queryFn: async () => {
+      let allItems = [];
+      let offset = 0;
+      const pageSize = 100;
+      while (true) {
+        const response = await wixCient.products
+          .queryProducts()
+          .hasSome('collectionIds', [CollectionId])
+          .skip(offset)
+          .limit(pageSize)
+          .find();
+        const page = response?.items || [];
+        allItems = [...allItems, ...page];
+        if (page.length < pageSize) break;
+        offset += pageSize;
+      }
+      return allItems;
+    },
   });
 
   if (productsResponse.isLoading) {
@@ -32,9 +49,7 @@ export function ProductsScreen({ navigation, route }) {
   if (productsResponse.isError) {
     return <ErrorView message={productsResponse.error.message} />;
   }
-  const items = productsResponse.data.items.filter((product) =>
-    product.collectionIds.includes(CollectionId),
-  );
+  const items = productsResponse.data;
 
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState(null);

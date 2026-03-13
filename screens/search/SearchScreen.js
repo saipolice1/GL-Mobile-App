@@ -224,6 +224,7 @@ export const SearchScreen = ({ navigation }) => {
   // Fetch all products with pagination
   const { data: allProducts = [], isLoading: isLoadingAll } = useQuery({
     queryKey: ['all-products'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       try {
         let allItems = [];

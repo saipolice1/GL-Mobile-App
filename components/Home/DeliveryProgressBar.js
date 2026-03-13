@@ -3,9 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
-
-const SAME_DAY_MIN = 80;
-const FREE_DELIVERY_MIN = 200;
+import { SAME_DAY_MIN, FREE_DELIVERY_MIN } from '../../constants/delivery';
 
 export const DeliveryProgressBar = ({ cartTotal = 0 }) => {
   const sameDayRemaining = Math.max(0, SAME_DAY_MIN - cartTotal);

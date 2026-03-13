@@ -38,7 +38,7 @@ export const CollectionsScreen = ({ navigation }) => {
       backIcon={false}
     >
       <CollectionsGrid
-        data={collectionsResponse.data._items}
+        data={collectionsResponse.data.items}
         onPress={collectionPressHandler}
       />
     </SimpleContainer>

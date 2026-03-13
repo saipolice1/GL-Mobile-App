@@ -1,72 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
   Pressable,
-  Image,
   Dimensions,
   Linking,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { theme } from '../../styles/theme';
 
 const { width, height } = Dimensions.get('window');
 
-const AGE_VERIFIED_KEY = 'grafton_liquor_age_verified';
-const AGE_VERIFIED_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+// In-memory flag: resets on every cold start (app killed + reopened).
+// When backgrounded/foregrounded the state persists — user is not re-prompted.
+let sessionVerified = false;
 
 export const AgeVerification = ({ children }) => {
-  const [isVerified, setIsVerified] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    checkAgeVerification();
-  }, []);
-
-  const checkAgeVerification = async () => {
-    try {
-      const storedValue = await SecureStore.getItemAsync(AGE_VERIFIED_KEY);
-      if (storedValue) {
-        const verifiedAt = parseInt(storedValue, 10);
-        // Check if verification is still within 24 hours
-        if (!isNaN(verifiedAt) && (Date.now() - verifiedAt) < AGE_VERIFIED_EXPIRY) {
-          setIsVerified(true);
-        } else {
-          // Expired — clear it
-          await SecureStore.deleteItemAsync(AGE_VERIFIED_KEY);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking age verification:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    try {
-      // Store the current timestamp so we can expire it after 24 hours
-      await SecureStore.setItemAsync(AGE_VERIFIED_KEY, Date.now().toString());
-      setIsVerified(true);
-    } catch (error) {
-      console.error('Error saving age verification:', error);
-      setIsVerified(true);
-    }
+  const [isVerified, setIsVerified] = useState(sessionVerified);
+  const handleVerify = () => {
+    sessionVerified = true;
+    setIsVerified(true);
   };
 
   const handleExit = () => {
     Linking.openURL('https://www.google.com');
   };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
 
   if (isVerified) {
     return children;

@@ -182,7 +182,9 @@ export async function trackActivity(activityType, data = {}) {
     const visitorId = await getVisitorId();
     const deviceInfo = getDeviceInfo();
     const memberInfo = await getMemberInfo();
-    const locationInfo = await getLocationInfo();
+    // Use cached location if available; trigger a background fetch for next call
+    const locationInfo = cachedLocation !== undefined ? cachedLocation : null;
+    if (cachedLocation === undefined) getLocationInfo().catch(() => {});
     
     const activity = {
       id: `act_${Date.now()}`,
