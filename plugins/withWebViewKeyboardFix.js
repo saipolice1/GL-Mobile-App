@@ -40,9 +40,11 @@ function withWebViewKeyboardFix(config) {
     );
 
     if (!alreadyAdded) {
+      const groupKey = xcodeProject.findPBXGroupKey({ name: projectName });
       xcodeProject.addSourceFile(
         filePath,
-        { target: xcodeProject.getFirstTarget().uuid }
+        { target: xcodeProject.getFirstTarget().uuid },
+        groupKey
       );
     }
 
