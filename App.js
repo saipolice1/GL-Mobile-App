@@ -1,5 +1,6 @@
 import "./polyfills";
 
+import * as Sentry from "@sentry/react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,6 +25,13 @@ import { trackAppOpen } from "./services/visitorTracking";
 import Routes from "./routes/routes";
 import { ForceUpdateModal } from "./components/ForceUpdate/ForceUpdateModal";
 import { fetchAppConfig, isVersionBelowMinimum } from "./utils/versionCheck";
+
+// Crash reporting — set EXPO_PUBLIC_SENTRY_DSN in your EAS environment variables
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.2,
+});
 
 // Initialize WebBrowser auth session on app startup
 initializeAuthSession();
@@ -206,4 +214,4 @@ function App() {
   );
 }
 
-export default App;
+export default Sentry.wrap(App);
