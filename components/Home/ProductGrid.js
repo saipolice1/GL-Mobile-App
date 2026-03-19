@@ -1,7 +1,7 @@
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { ProductCard } from './ProductCard';
 import { theme } from '../../styles/theme';
-import { LoadingIndicator } from '../LoadingIndicator/LoadingIndicator';
+import { SkeletonGrid } from './SkeletonProductCard';
 
 export const ProductGrid = ({ 
   products, 
@@ -19,7 +19,7 @@ export const ProductGrid = ({
   
   if (isLoading) {
     return (
-      <LoadingIndicator />
+      <SkeletonGrid />
     );
   }
 
