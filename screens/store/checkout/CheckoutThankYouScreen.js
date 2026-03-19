@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { View, TouchableOpacity, Text as RNText } from "react-native";
 import { Divider, Text } from "react-native-paper";
 import { wixCient } from "../../../authentication/wixClient";
@@ -10,6 +11,12 @@ import { theme } from "../../../styles/theme";
 
 export function CheckoutThankYouScreen({ route, navigation }) {
   usePreventBackNavigation({ navigation });
+  const queryClient = useQueryClient();
+
+  // Clear the cart cache — Wix creates a new cart after order is placed
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ["currentCart"] });
+  }, []);
 
   const orderQuery = useQuery({
     queryKey: ["order", route.params.orderId],
