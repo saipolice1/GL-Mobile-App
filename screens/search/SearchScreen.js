@@ -20,6 +20,7 @@ import { theme } from '../../styles/theme';
 import { IS_TABLET, rs } from '../../utils/responsive';
 import { wixCient } from '../../authentication/wixClient';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
+import { LoadingIndicator } from '../../components/LoadingIndicator/LoadingIndicator';
 import { CATEGORIES_DATA } from '../../components/Home/CategoryBarWithIcons';
 import Routes from '../../routes/routes';
 import { getBestSellersAlgorithmId, getRecommendations } from '../../utils/wixRecommendations';
@@ -477,9 +478,7 @@ export const SearchScreen = ({ navigation }) => {
 
       {/* Results */}
       {isLoadingAll ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
-        </View>
+        <LoadingIndicator />
       ) : (
         <FlatList
           data={filteredAndSortedProducts}
