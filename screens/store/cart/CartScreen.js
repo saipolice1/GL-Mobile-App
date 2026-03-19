@@ -625,7 +625,7 @@ function CartView() {
       const { redirectSession } = await wixCient.redirects.createRedirectSession({
         ecomCheckout: { checkoutId: currentCheckout.checkoutId },
         callbacks: {
-          thankYouPageUrl: Linking.createURL("/store/checkout/thank-you"),
+          thankYouPageUrl: "https://www.graftonliquor.co.nz/store/checkout/thank-you",
         },
       });
 
