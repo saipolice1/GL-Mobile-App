@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import * as React from "react";
 import { View, TouchableOpacity, Text as RNText } from "react-native";
 import { Divider, Text } from "react-native-paper";
 import { wixCient } from "../../../authentication/wixClient";
@@ -148,7 +147,7 @@ export function CheckoutThankYouScreen({ route, navigation }) {
             alignItems: 'center',
           }}
           onPress={() => {
-            navigation.navigate(Routes.Products);
+            navigation.navigate(Routes.Home);
           }}
           activeOpacity={0.8}
         >
