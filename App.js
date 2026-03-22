@@ -6,6 +6,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
+import * as Updates from "expo-updates";
 import * as React from "react";
 import { useEffect } from "react";
 import "react-native-gesture-handler";
@@ -15,7 +16,6 @@ import { LoginHandler } from "./authentication/LoginHandler";
 import { MemberHandler } from "./authentication/MemberHandler";
 import { WixSessionProvider } from "./authentication/session";
 import { initializeAuthSession } from "./authentication/wixSystemLogin";
-import { LoadingIndicator } from "./components/LoadingIndicator/LoadingIndicator";
 import { TabBar } from "./components/Tabs/Tabs";
 import { AgeVerification } from "./components/AgeVerification/AgeVerification";
 import { tabs } from "./data/tabs/data";
@@ -80,6 +80,21 @@ function App() {
   const navigationRef = React.useRef(null);
   // Store a deep-link action to execute once NavigationContainer is ready
   const pendingNavigationRef = React.useRef(null);
+
+  // Eager OTA update check — download and reload immediately if update available
+  useEffect(() => {
+    if (__DEV__) return;
+    async function applyUpdateIfAvailable() {
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (check.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (_) {}
+    }
+    applyUpdateIfAvailable();
+  }, []);
 
   // Track app open for Wix visitor alerts
   useEffect(() => {
