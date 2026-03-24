@@ -2,25 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { IS_TABLET } from '../../utils/responsive';
 
-// Single shared shimmer drives all cards in sync
-let _shimmer = null;
-function getShimmer() {
-  if (!_shimmer) {
-    _shimmer = new Animated.Value(0);
-    Animated.loop(
-      Animated.timing(_shimmer, {
-        toValue: 1,
-        duration: 1100,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }
-  return _shimmer;
-}
-
-const Block = ({ style, cardWidth }) => {
-  const tx = getShimmer().interpolate({
+const Block = ({ style, cardWidth, shimmer }) => {
+  const tx = shimmer.interpolate({
     inputRange: [0, 1],
     outputRange: [-cardWidth * 2, cardWidth * 2],
   });
@@ -40,12 +23,12 @@ const Block = ({ style, cardWidth }) => {
   );
 };
 
-export const SkeletonProductCard = ({ cardWidth }) => (
+export const SkeletonProductCard = ({ cardWidth, shimmer }) => (
   <View style={{ width: cardWidth, marginBottom: 16 }}>
-    <Block style={{ aspectRatio: 1, borderRadius: 12, marginBottom: 8 }} cardWidth={cardWidth} />
-    <Block style={{ height: 11, borderRadius: 4, marginBottom: 5, width: '85%' }} cardWidth={cardWidth} />
-    <Block style={{ height: 11, borderRadius: 4, marginBottom: 6, width: '60%' }} cardWidth={cardWidth} />
-    <Block style={{ height: 12, borderRadius: 4, width: '45%' }} cardWidth={cardWidth} />
+    <Block style={{ aspectRatio: 1, borderRadius: 12, marginBottom: 8 }} cardWidth={cardWidth} shimmer={shimmer} />
+    <Block style={{ height: 11, borderRadius: 4, marginBottom: 5, width: '85%' }} cardWidth={cardWidth} shimmer={shimmer} />
+    <Block style={{ height: 11, borderRadius: 4, marginBottom: 6, width: '60%' }} cardWidth={cardWidth} shimmer={shimmer} />
+    <Block style={{ height: 12, borderRadius: 4, width: '45%' }} cardWidth={cardWidth} shimmer={shimmer} />
   </View>
 );
 
@@ -54,10 +37,25 @@ export const SkeletonGrid = ({ count = 9 }) => {
   const numColumns = IS_TABLET ? 4 : 3;
   const cardWidth = (width - 16 * (numColumns + 1)) / numColumns;
 
+  // Fresh animation per mount — avoids native driver "orphan" issue
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [shimmer]);
+
   return (
     <View style={styles.grid}>
       {Array.from({ length: count }).map((_, i) => (
-        <SkeletonProductCard key={i} cardWidth={cardWidth} />
+        <SkeletonProductCard key={i} cardWidth={cardWidth} shimmer={shimmer} />
       ))}
     </View>
   );
