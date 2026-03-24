@@ -19,6 +19,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { IS_TABLET, rs } from '../../utils/responsive';
 import { wixCient } from '../../authentication/wixClient';
+import { getCachedProducts } from '../../services/productCache';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
 import { SkeletonGrid } from '../../components/Home/SkeletonProductCard';
 import { CATEGORIES_DATA } from '../../components/Home/CategoryBarWithIcons';
@@ -222,34 +223,42 @@ export const SearchScreen = ({ navigation }) => {
     },
   });
 
-  // Fetch all products with pagination
+  // Fetch all products — use shared AsyncStorage cache first (populated by HomeScreen)
   const { data: allProducts = [], isLoading: isLoadingAll } = useQuery({
     queryKey: ['all-products'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       try {
+        // Try shared cache first to avoid duplicate API calls
+        const cached = await getCachedProducts();
+        if (cached && cached.length > 0) {
+          console.log(`SearchScreen: Using ${cached.length} cached products`);
+          return cached;
+        }
+
+        // Fallback: fetch fresh if cache is empty
         let allItems = [];
         let offset = 0;
         const pageSize = 100;
-        
+
         while (true) {
           const response = await wixCient.products
             .queryProducts()
             .skip(offset)
             .limit(pageSize)
             .find();
-          
+
           const items = response?.items || [];
           if (items.length === 0) break;
-          
+
           allItems = [...allItems, ...items];
           offset += pageSize;
-          
+
           if (items.length < pageSize) break;
           if (allItems.length >= 1000) break;
         }
-        
-        console.log(`SearchScreen: Fetched ${allItems.length} total products`);
+
+        console.log(`SearchScreen: Fetched ${allItems.length} products fresh`);
         return allItems;
       } catch (error) {
         console.log('Products fetch error:', error);
