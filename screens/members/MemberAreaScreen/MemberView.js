@@ -24,6 +24,7 @@ import Routes from "../../../routes/routes";
 import { WIX_PAGES } from "../../webview/WebViewScreen";
 import { useNotifications } from "../../../context/NotificationContext";
 import { registerPushTokenWithWix } from "../../../services/notifications";
+import { OTA_VERSION } from "../../../constants/otaVersion";
 
 // Custom Accordion for MemberView
 const MemberAccordion = ({ title, children, defaultExpanded = false }) => {
@@ -620,6 +621,9 @@ export const MemberView = ({ navigation }) => {
           </View>
           <MemberForm member={currentMember} />
         </View>
+        <RNText style={{ textAlign: 'center', color: theme.colors.textMuted, fontSize: 11, paddingVertical: 16 }}>
+          v{OTA_VERSION}
+        </RNText>
       </DismissKeyboardScrollView>
       </KeyboardAvoidingView>
 

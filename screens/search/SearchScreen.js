@@ -403,7 +403,6 @@ export const SearchScreen = ({ navigation }) => {
             placeholderTextColor={theme.colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            autoFocus={true}
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (

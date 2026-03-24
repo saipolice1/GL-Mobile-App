@@ -3,6 +3,7 @@ import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import { useWixSession } from "../../../authentication/session";
 import { LoginForm } from "../../../components/Form/LoginForm";
 import { theme } from "../../../styles/theme";
+import { OTA_VERSION } from "../../../constants/otaVersion";
 
 export const SignInView = ({ navigation }) => {
   const { sessionLoading } = useWixSession();
@@ -24,6 +25,7 @@ export const SignInView = ({ navigation }) => {
         loading={sessionLoading}
         disabled={sessionLoading}
       />
+      <Text style={styles.version}>v{OTA_VERSION}</Text>
     </View>
   );
 };
@@ -43,5 +45,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
     fontWeight: "500",
+  },
+  version: {
+    textAlign: 'center',
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    paddingBottom: 16,
   },
 });
