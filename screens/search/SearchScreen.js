@@ -181,6 +181,12 @@ export const SearchScreen = ({ navigation }) => {
   const [filterBy, setFilterBy] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [trendingProductIds, setTrendingProductIds] = useState([]);
+  // Ensure skeleton shows long enough for the shimmer animation to be visible
+  const [minSkeletonDone, setMinSkeletonDone] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMinSkeletonDone(true), 700);
+    return () => clearTimeout(t);
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -485,7 +491,7 @@ export const SearchScreen = ({ navigation }) => {
       )}
 
       {/* Results */}
-      {isLoadingAll ? (
+      {(isLoadingAll || !minSkeletonDone) ? (
         <SkeletonGrid />
       ) : (
         <FlatList
