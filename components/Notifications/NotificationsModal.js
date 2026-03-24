@@ -14,6 +14,7 @@ import { theme } from '../../styles/theme';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wixCient } from '../../authentication/wixClient';
 import { useWixSession } from '../../authentication/session';
+import { useNotifications } from '../../context/NotificationContext';
 import { format } from 'date-fns';
 
 const { width, height } = Dimensions.get('window');
@@ -21,6 +22,8 @@ const { width, height } = Dimensions.get('window');
 export const NotificationsModal = ({ visible, onClose }) => {
   const { session, isLoggedIn } = useWixSession();
   const queryClient = useQueryClient();
+  const { inbox, clearInbox, markAllRead } = useNotifications();
+  const [activeTab, setActiveTab] = useState('inbox');
 
   const subscriptionsQuery = useQuery({
     queryKey: ["back-in-stock-subscriptions", session],
@@ -120,59 +123,119 @@ export const NotificationsModal = ({ visible, onClose }) => {
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Ionicons name="notifications" size={24} color={theme.colors.accent} />
-              <Text style={styles.headerTitle}>Stock Notifications</Text>
+              <Text style={styles.headerTitle}>Notifications</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={28} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
+          {/* Tabs */}
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'inbox' && styles.tabActive]}
+              onPress={() => { setActiveTab('inbox'); markAllRead(); }}
+            >
+              <Text style={[styles.tabText, activeTab === 'inbox' && styles.tabTextActive]}>
+                Inbox {inbox.length > 0 ? `(${inbox.length})` : ''}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'stock' && styles.tabActive]}
+              onPress={() => setActiveTab('stock')}
+            >
+              <Text style={[styles.tabText, activeTab === 'stock' && styles.tabTextActive]}>
+                Back in Stock
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Content */}
           <View style={styles.content}>
-            {!isLoggedIn ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="log-in-outline" size={64} color={theme.colors.textMuted} />
-                <Text style={styles.emptyTitle}>Sign in required</Text>
-                <Text style={styles.emptySubtitle}>
-                  Sign in to view and manage your stock notifications
-                </Text>
-              </View>
-            ) : subscriptionsQuery.isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.accent} />
-                <Text style={styles.loadingText}>Loading notifications...</Text>
-              </View>
-            ) : subscriptionsQuery.isError ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
-                <Text style={styles.emptyTitle}>Failed to load</Text>
-                <Text style={styles.emptySubtitle}>Please try again later</Text>
-              </View>
-            ) : subscriptions.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="notifications-off-outline" size={64} color={theme.colors.textMuted} />
-                <Text style={styles.emptyTitle}>No notifications yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Subscribe to out-of-stock products to get notified when they're back
-                </Text>
-              </View>
-            ) : (
-              <View style={{ flex: 1 }}>
-                <View style={styles.infoBox}>
-                  <Ionicons name="information-circle" size={20} color={theme.colors.accent} />
-                  <Text style={styles.infoText}>
-                    You'll receive a push notification when these products are back in stock
+            {activeTab === 'inbox' ? (
+              inbox.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="mail-open-outline" size={64} color={theme.colors.textMuted} />
+                  <Text style={styles.emptyTitle}>No messages yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Promotions and updates from Grafton Liquor will appear here
                   </Text>
                 </View>
-                
-                <FlatList
-                  data={subscriptions}
-                  renderItem={renderSubscriptionItem}
-                  keyExtractor={(item, index) => item._id?.toString() || `notification-${index}`}
-                  contentContainerStyle={styles.listContainer}
-                  showsVerticalScrollIndicator={false}
-                />
-              </View>
+              ) : (
+                <View style={{ flex: 1 }}>
+                  <FlatList
+                    data={inbox}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContainer}
+                    showsVerticalScrollIndicator={false}
+                    ListFooterComponent={
+                      <TouchableOpacity onPress={clearInbox} style={styles.clearButton}>
+                        <Text style={styles.clearButtonText}>Clear all</Text>
+                      </TouchableOpacity>
+                    }
+                    renderItem={({ item }) => (
+                      <View style={[styles.inboxItem, !item.read && styles.inboxItemUnread]}>
+                        <View style={styles.inboxIcon}>
+                          <Ionicons name="megaphone-outline" size={20} color={theme.colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.inboxTitle}>{item.title}</Text>
+                          <Text style={styles.inboxBody}>{item.body}</Text>
+                          <Text style={styles.inboxDate}>
+                            {format(new Date(item.receivedAt), "MMM dd, yyyy · h:mm a")}
+                          </Text>
+                        </View>
+                        {!item.read && <View style={styles.unreadDot} />}
+                      </View>
+                    )}
+                  />
+                </View>
+              )
+            ) : (
+              !isLoggedIn ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="log-in-outline" size={64} color={theme.colors.textMuted} />
+                  <Text style={styles.emptyTitle}>Sign in required</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Sign in to view and manage your stock notifications
+                  </Text>
+                </View>
+              ) : subscriptionsQuery.isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={theme.colors.accent} />
+                  <Text style={styles.loadingText}>Loading notifications...</Text>
+                </View>
+              ) : subscriptionsQuery.isError ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
+                  <Text style={styles.emptyTitle}>Failed to load</Text>
+                  <Text style={styles.emptySubtitle}>Please try again later</Text>
+                </View>
+              ) : subscriptions.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="notifications-off-outline" size={64} color={theme.colors.textMuted} />
+                  <Text style={styles.emptyTitle}>No subscriptions yet</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Subscribe to out-of-stock products to get notified when they're back
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ flex: 1 }}>
+                  <View style={styles.infoBox}>
+                    <Ionicons name="information-circle" size={20} color={theme.colors.accent} />
+                    <Text style={styles.infoText}>
+                      You'll receive a push notification when these products are back in stock
+                    </Text>
+                  </View>
+                  <FlatList
+                    data={subscriptions}
+                    renderItem={renderSubscriptionItem}
+                    keyExtractor={(item, index) => item._id?.toString() || `notification-${index}`}
+                    contentContainerStyle={styles.listContainer}
+                    showsVerticalScrollIndicator={false}
+                  />
+                </View>
+              )
             )}
           </View>
         </View>
@@ -301,6 +364,80 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: theme.colors.error + '15',
     borderRadius: 8,
+  },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  tabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors.accent,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.textMuted,
+  },
+  tabTextActive: {
+    color: theme.colors.accent,
+    fontWeight: '700',
+  },
+  inboxItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginVertical: 5,
+  },
+  inboxItemUnread: {
+    backgroundColor: theme.colors.accent + '10',
+  },
+  inboxIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.accent + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inboxTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 3,
+  },
+  inboxBody: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 5,
+  },
+  inboxDate: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.accent,
+    marginTop: 4,
+  },
+  clearButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  clearButtonText: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
   },
 });
 
