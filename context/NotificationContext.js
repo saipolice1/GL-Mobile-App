@@ -10,6 +10,8 @@ import {
 
 const INBOX_KEY = '@notification_inbox';
 const MAX_INBOX = 50;
+const REMINDER_KEY = '@notif_reminder_last_shown';
+const REMINDER_INTERVAL_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 async function saveToInbox(notification) {
   try {
@@ -46,6 +48,7 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
   const [expoPushToken, setExpoPushToken] = useState(null);
   const [notification, setNotification] = useState(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [showPermissionReminder, setShowPermissionReminder] = useState(false);
   const [inbox, setInbox] = useState([]);
 
   const notificationListener = useRef();
@@ -71,6 +74,11 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
 
   const unreadCount = inbox.filter(n => !n.read).length;
 
+  const dismissReminder = async () => {
+    await AsyncStorage.setItem(REMINDER_KEY, String(Date.now()));
+    setShowPermissionReminder(false);
+  };
+
   useEffect(() => {
     // Clear badge when app comes to foreground
     const appStateListener = AppState.addEventListener('change', state => {
@@ -82,11 +90,17 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
     Notifications.setBadgeCountAsync(0);
 
     // Register for push notifications
-    registerForPushNotificationsAsync().then(token => {
+    registerForPushNotificationsAsync().then(async token => {
       if (token) {
         setExpoPushToken(token);
         setPermissionGranted(true);
-        console.log('Push notification token:', token);
+      } else {
+        // Permission denied — show reminder if 48hrs have passed since last dismiss
+        const raw = await AsyncStorage.getItem(REMINDER_KEY);
+        const lastShown = raw ? parseInt(raw, 10) : 0;
+        if (Date.now() - lastShown >= REMINDER_INTERVAL_MS) {
+          setShowPermissionReminder(true);
+        }
       }
     });
 
@@ -143,6 +157,8 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
     expoPushToken,
     notification,
     permissionGranted,
+    showPermissionReminder,
+    dismissReminder,
     inbox,
     unreadCount,
     clearInbox,

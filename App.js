@@ -21,6 +21,7 @@ import { AgeVerification } from "./components/AgeVerification/AgeVerification";
 import { tabs } from "./data/tabs/data";
 import { theme as appTheme } from "./styles/theme";
 import { NotificationProvider } from "./context/NotificationContext";
+import { NotificationPermissionBanner } from "./components/Notifications/NotificationPermissionBanner";
 import { trackAppOpen } from "./services/visitorTracking";
 import Routes from "./routes/routes";
 import { ForceUpdateModal } from "./components/ForceUpdate/ForceUpdateModal";
@@ -221,6 +222,7 @@ function App() {
             </AgeVerification>
           </MemberHandler>
           </WixSessionProvider>
+          <NotificationPermissionBanner />
         </NotificationProvider>
       </QueryClientProvider>
     </PaperProvider>
