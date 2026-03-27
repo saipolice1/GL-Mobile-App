@@ -9,6 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SplashScreen from 'expo-splash-screen';
 import { theme } from '../../styles/theme';
 
 const { width, height } = Dimensions.get('window');
@@ -21,6 +22,8 @@ export const AgeVerification = ({ children }) => {
   useEffect(() => {
     AsyncStorage.getItem(AGE_VERIFIED_KEY).then(val => {
       setIsVerified(val === 'true');
+      // Hide splash screen now that we know the verified state
+      SplashScreen.hideAsync().catch(() => {});
     });
   }, []);
 

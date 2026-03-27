@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 import * as Updates from "expo-updates";
+import * as SplashScreen from "expo-splash-screen";
 import * as React from "react";
 import { useEffect } from "react";
 import "react-native-gesture-handler";
@@ -31,6 +32,9 @@ Sentry.init({
   dsn: "https://1bab95c91db12ee3fc36ab9a8775a677@o4511035626160128.ingest.us.sentry.io/4511035635400704",
   tracesSampleRate: 0.2,
 });
+
+// Keep splash screen visible until app is ready (age check, etc.)
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Initialize WebBrowser auth session on app startup
 initializeAuthSession();
