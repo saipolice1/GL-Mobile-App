@@ -16,12 +16,11 @@ const { width, height } = Dimensions.get('window');
 const AGE_VERIFIED_KEY = '@age_verified';
 
 export const AgeVerification = ({ children }) => {
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(null); // null = still checking
 
   useEffect(() => {
-    // Check if user has already verified age (persists across sessions and OTA updates)
     AsyncStorage.getItem(AGE_VERIFIED_KEY).then(val => {
-      if (val === 'true') setIsVerified(true);
+      setIsVerified(val === 'true');
     });
   }, []);
 
@@ -33,6 +32,9 @@ export const AgeVerification = ({ children }) => {
   const handleExit = () => {
     Linking.openURL('https://www.google.com');
   };
+
+  // Still reading AsyncStorage — show nothing to avoid flash
+  if (isVerified === null) return null;
 
   if (isVerified) {
     return children;
