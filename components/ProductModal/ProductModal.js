@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -203,6 +204,7 @@ export const ProductModal = ({
         }
       });
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return wixCient.currentCart.addToCurrentCart({ lineItems });
     },
     onSuccess: (response) => {

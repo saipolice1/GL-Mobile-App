@@ -2,7 +2,7 @@
   "expo": {
     "name": "Grafton Liquor",
     "slug": "grafton-liquor",
-    "version": "1.0.17",
+    "version": "1.0.18",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundImage": "./assets/adaptive-icon-background.png"
       },
-      "versionCode": 16,
+      "versionCode": 17,
       "package": "nz.co.graftonliquor.app"
     },
     "web": {
@@ -68,7 +68,14 @@
           "project": "gl-mobile-app"
         }
       ],
-      "./plugins/withWebViewKeyboardFix"
+      "./plugins/withWebViewKeyboardFix",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Grafton Liquor to access your photos to set a profile picture.",
+          "cameraPermission": "Allow Grafton Liquor to use your camera to take a profile picture."
+        }
+      ]
     ],
     "extra": {
       "eas": {

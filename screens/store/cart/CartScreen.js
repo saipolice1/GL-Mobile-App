@@ -2,17 +2,19 @@ import { useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { currentCart } from "@wix/ecom";
+import * as Haptics from 'expo-haptics';
 import * as Linking from "expo-linking";
 import { LinearGradient } from "expo-linear-gradient";
 import _, { isInteger } from "lodash";
 import * as React from "react";
 import { useEffect, useRef } from "react";
-import { 
-  RefreshControl, 
-  ScrollView, 
-  Text, 
-  View, 
-  TouchableOpacity, 
+import {
+  RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+  TouchableOpacity,
   Image,
   StyleSheet,
   Alert,
@@ -556,6 +558,8 @@ function CartView() {
   const [selectedProduct, setSelectedProduct] = React.useState(null);
   const [productModalVisible, setProductModalVisible] = React.useState(false);
   const [loadingProduct, setLoadingProduct] = React.useState(false);
+  const [deliveryNote, setDeliveryNote] = React.useState('');
+  const [giftMessage, setGiftMessage] = React.useState('');
 
   const handleProductPress = async (cartItem) => {
     const productId = cartItem.catalogReference?.catalogItemId;
@@ -618,6 +622,16 @@ function CartView() {
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       setCheckoutLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // Save delivery note + gift message as buyerNote if provided
+      const parts = [];
+      if (deliveryNote.trim()) parts.push(deliveryNote.trim());
+      if (giftMessage.trim()) parts.push(`Gift message: ${giftMessage.trim()}`);
+      if (parts.length > 0) {
+        try {
+          await wixCient.currentCart.updateCurrentCart({ cartInfo: { buyerNote: parts.join('\n') } });
+        } catch (_) {}
+      }
       const currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
         channelType: currentCart.ChannelType.OTHER_PLATFORM,
       });
@@ -730,6 +744,35 @@ function CartView() {
           <Text style={cartStyles.shippingNoteText}>
             {'🇳🇿 Nationwide courier delivery available for wines & spirits — including vodka, rum, whiskey, liqueur and gin. Beer & RTDs are available for local delivery only.'}
           </Text>
+        </View>
+
+        {/* Delivery Instructions + Gift Message */}
+        <View style={cartStyles.notesSection}>
+          <Text style={cartStyles.notesSectionTitle}>Order Notes (optional)</Text>
+          <View style={cartStyles.noteInputWrapper}>
+            <Ionicons name="bicycle-outline" size={18} color={theme.colors.textMuted} style={{ marginTop: 2 }} />
+            <TextInput
+              style={cartStyles.noteInput}
+              placeholder="Delivery instructions (e.g. leave at door)"
+              placeholderTextColor={theme.colors.textMuted}
+              value={deliveryNote}
+              onChangeText={setDeliveryNote}
+              multiline
+              maxLength={200}
+            />
+          </View>
+          <View style={[cartStyles.noteInputWrapper, { marginTop: 8 }]}>
+            <Ionicons name="gift-outline" size={18} color={theme.colors.textMuted} style={{ marginTop: 2 }} />
+            <TextInput
+              style={cartStyles.noteInput}
+              placeholder="Gift message (optional)"
+              placeholderTextColor={theme.colors.textMuted}
+              value={giftMessage}
+              onChangeText={setGiftMessage}
+              multiline
+              maxLength={200}
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -968,6 +1011,42 @@ const cartStyles = StyleSheet.create({
     flex: 1,
   },
   // Shipping Note - Gold/Yellow accent for visibility
+  notesSection: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  notesSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  noteInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  noteInput: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    minHeight: 38,
+    maxHeight: 80,
+  },
   shippingNote: {
     flexDirection: 'row',
     alignItems: 'center',

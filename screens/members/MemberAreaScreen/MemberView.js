@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from "react";
-import { Image, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform, Alert, Modal } from "react-native";
+import { Image, Linking, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform, Alert, Modal } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   Avatar,
@@ -167,6 +170,35 @@ const STATUS_COLORS = {
 
 const Orders = ({ navigation }) => {
   const { session } = useWixSession();
+  const queryClient = useQueryClient();
+  const [reordering, setReordering] = useState(null);
+
+  const handleReorder = async (order) => {
+    try {
+      setReordering(order.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const lineItems = order.lineItems
+        .filter(item => item.catalogReference?.catalogItemId)
+        .map(item => ({
+          catalogReference: {
+            catalogItemId: item.catalogReference.catalogItemId,
+            appId: item.catalogReference.appId || "215238eb-22a5-4c36-9e7b-e7c08025e04e",
+          },
+          quantity: item.quantity,
+        }));
+      if (lineItems.length === 0) {
+        Alert.alert('Cannot Reorder', 'No reorderable items found.');
+        return;
+      }
+      await wixCient.currentCart.addToCurrentCart({ lineItems });
+      queryClient.invalidateQueries({ queryKey: ['currentCart'] });
+      Alert.alert('Added to Cart', `${lineItems.length} item${lineItems.length !== 1 ? 's' : ''} added to your cart.`);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to add items to cart. Please try again.');
+    } finally {
+      setReordering(null);
+    }
+  };
 
   const myOrdersQuery = useQuery({
     queryKey: ["my-orders", session],
@@ -193,13 +225,9 @@ const Orders = ({ navigation }) => {
       {orders.map((order) => {
         const statusColor = STATUS_COLORS[order.fulfillmentStatus] || theme.colors.textMuted;
         const statusLabel = STATUS_LABELS[order.fulfillmentStatus] || order.fulfillmentStatus;
+        const isReordering = reordering === order.id;
         return (
-          <TouchableOpacity
-            key={order.id}
-            activeOpacity={0.75}
-            onPress={() => navigation.navigate(Routes.OrderDetails, { orderId: order.id, orderNumber: order.number })}
-            style={{ marginBottom: 12 }}
-          >
+          <View key={order.id} style={{ marginBottom: 12 }}>
             <View style={{ backgroundColor: theme.colors.background, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, padding: 14 }}>
               {/* Row 1: Order # + Status */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -225,20 +253,35 @@ const Orders = ({ navigation }) => {
                       <RNText style={{ color: theme.colors.textMuted, fontSize: 12 }}>+{order.lineItems.length - 1} more item{order.lineItems.length > 2 ? 's' : ''}</RNText>
                     )}
                   </View>
+                  <RNText style={{ fontSize: 15, fontWeight: '700', color: theme.colors.text }}>
+                    {order.currency} {Number.parseFloat(order.totals?.total || 0).toFixed(2)}
+                  </RNText>
                 </View>
               )}
-              {/* Row 3: Total + chevron */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <RNText style={{ fontSize: 15, fontWeight: '700', color: theme.colors.text }}>
-                  {order.currency} {Number.parseFloat(order.totals?.total || 0).toFixed(2)}
-                </RNText>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <RNText style={{ fontSize: 13, color: theme.colors.accent, marginRight: 4 }}>View details</RNText>
-                  <Ionicons name="chevron-forward" size={16} color={theme.colors.accent} />
-                </View>
+              {/* Actions: View Details + Reorder */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate(Routes.OrderDetails, { orderId: order.id, orderNumber: order.number })}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border }}
+                  activeOpacity={0.7}
+                >
+                  <RNText style={{ fontSize: 13, color: theme.colors.accent, marginRight: 2 }}>View details</RNText>
+                  <Ionicons name="chevron-forward" size={14} color={theme.colors.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleReorder(order)}
+                  disabled={isReordering}
+                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 8, backgroundColor: theme.colors.secondary, opacity: isReordering ? 0.6 : 1 }}
+                  activeOpacity={0.7}
+                >
+                  {isReordering
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <RNText style={{ fontSize: 13, color: '#fff', fontWeight: '600' }}>Reorder</RNText>
+                  }
+                </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
         );
       })}
       {!orders.length && (
@@ -262,6 +305,51 @@ export const MemberView = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [addresses, setAddresses] = useState([]);
+  const [showAddressInput, setShowAddressInput] = useState(false);
+  const [newAddressText, setNewAddressText] = useState('');
+
+  // Load profile photo and addresses from storage when member loads
+  useEffect(() => {
+    if (!currentMember?._id) return;
+    const id = currentMember._id;
+    AsyncStorage.getItem(`@profile_photo_${id}`).then(uri => {
+      if (uri) setProfilePhoto(uri);
+    });
+    AsyncStorage.getItem(`@saved_addresses_${id}`).then(raw => {
+      if (raw) setAddresses(JSON.parse(raw));
+    });
+  }, [currentMember?._id]);
+
+  const pickProfilePhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      const uri = result.assets[0].uri;
+      await AsyncStorage.setItem(`@profile_photo_${currentMember._id}`, uri);
+      setProfilePhoto(uri);
+    }
+  };
+
+  const saveAddress = async () => {
+    if (!newAddressText.trim()) return;
+    const updated = [...addresses, newAddressText.trim()];
+    await AsyncStorage.setItem(`@saved_addresses_${currentMember._id}`, JSON.stringify(updated));
+    setAddresses(updated);
+    setNewAddressText('');
+    setShowAddressInput(false);
+  };
+
+  const removeAddress = async (index) => {
+    const updated = addresses.filter((_, i) => i !== index);
+    await AsyncStorage.setItem(`@saved_addresses_${currentMember._id}`, JSON.stringify(updated));
+    setAddresses(updated);
+  };
 
   // Fetch current member on mount and when session changes
   // Contact details come from: 1) Members API (getCurrentMember with FULL fieldsets), 2) AsyncStorage fallback
@@ -488,24 +576,27 @@ export const MemberView = ({ navigation }) => {
               width: "100%",
             }}
           >
-            {profile?.photo?.url ? (
-              <Avatar.Image
-                size={100}
-                theme={{ colors: { primary: "#403f2b" } }}
-                source={{
-                  uri: profile?.photo?.url,
-                }}
-              />
-            ) : (
-              <Avatar.Text
-                size={100}
-                label={
-                  contact?.firstName && contact?.lastName
-                    ? `${contact.firstName[0]}${contact.lastName[0]}`
-                    : profile?.nickname?.[0] || '?'
-                }
-              />
-            )}
+            <TouchableOpacity onPress={pickProfilePhoto} activeOpacity={0.8} style={{ position: 'relative' }}>
+              {profilePhoto || profile?.photo?.url ? (
+                <Avatar.Image
+                  size={100}
+                  theme={{ colors: { primary: "#403f2b" } }}
+                  source={{ uri: profilePhoto || profile?.photo?.url }}
+                />
+              ) : (
+                <Avatar.Text
+                  size={100}
+                  label={
+                    contact?.firstName && contact?.lastName
+                      ? `${contact.firstName[0]}${contact.lastName[0]}`
+                      : profile?.nickname?.[0] || '?'
+                  }
+                />
+              )}
+              <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.secondary, borderRadius: 12, padding: 5, borderWidth: 2, borderColor: theme.colors.background }}>
+                <Ionicons name="camera" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
             <Menu
               visible={visibleMenu}
               onDismiss={() => setVisibleMenu(false)}
@@ -559,6 +650,101 @@ export const MemberView = ({ navigation }) => {
         </View>
         <View style={{ marginTop: 20, width: "100%" }}>
           <Orders navigation={navigation} />
+
+          {/* Find Us */}
+          <MemberAccordion title="Find Us">
+            <View style={{ gap: 10 }}>
+              <View>
+                <RNText style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Grafton Liquor</RNText>
+                <RNText style={{ fontSize: 13, color: theme.colors.textMuted, marginTop: 3 }}>356 Karangahape Road, Auckland 1010, NZ</RNText>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL('https://maps.google.com/?q=356+Karangahape+Road+Auckland+1010+New+Zealand');
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: theme.colors.secondary, alignSelf: 'flex-start' }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="navigate" size={15} color="#fff" />
+                <RNText style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Get Directions</RNText>
+              </TouchableOpacity>
+            </View>
+          </MemberAccordion>
+
+          {/* Notification Settings */}
+          <MemberAccordion title="Notifications">
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
+              <View style={{ flex: 1 }}>
+                <RNText style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Push Notifications</RNText>
+                <RNText style={{ fontSize: 12, color: theme.colors.textMuted, marginTop: 2 }}>
+                  {expoPushToken ? 'Enabled — you\'ll receive order updates & deals' : 'Disabled — tap to enable in Settings'}
+                </RNText>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openSettings();
+                }}
+                style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: expoPushToken ? theme.colors.accent : theme.colors.secondary, marginLeft: 12 }}
+                activeOpacity={0.8}
+              >
+                <RNText style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
+                  {expoPushToken ? 'Manage' : 'Enable'}
+                </RNText>
+              </TouchableOpacity>
+            </View>
+          </MemberAccordion>
+
+          {/* Saved Addresses */}
+          <MemberAccordion title="Saved Addresses">
+            {addresses.map((addr, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+                <Ionicons name="location-outline" size={16} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
+                <RNText style={{ flex: 1, fontSize: 14, color: theme.colors.text }}>{addr}</RNText>
+                <TouchableOpacity onPress={() => removeAddress(i)} activeOpacity={0.7}>
+                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {showAddressInput ? (
+              <View style={{ marginTop: 10, gap: 8 }}>
+                <TextInput
+                  style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, fontSize: 14, color: theme.colors.text }}
+                  placeholder="e.g. 123 Main St, Auckland"
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={newAddressText}
+                  onChangeText={setNewAddressText}
+                  autoFocus
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => { setShowAddressInput(false); setNewAddressText(''); }}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center' }}
+                    activeOpacity={0.7}
+                  >
+                    <RNText style={{ fontSize: 14, color: theme.colors.text }}>Cancel</RNText>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={saveAddress}
+                    style={{ flex: 1, paddingVertical: 9, borderRadius: 8, backgroundColor: theme.colors.secondary, alignItems: 'center' }}
+                    activeOpacity={0.7}
+                  >
+                    <RNText style={{ fontSize: 14, color: '#fff', fontWeight: '600' }}>Save</RNText>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setShowAddressInput(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', marginTop: addresses.length > 0 ? 12 : 0, gap: 6 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={theme.colors.accent} />
+                <RNText style={{ fontSize: 14, color: theme.colors.accent, fontWeight: '500' }}>Add address</RNText>
+              </TouchableOpacity>
+            )}
+          </MemberAccordion>
         </View>
         <View style={styles.memberDetails}>
           <Text style={styles.memberDetailsTitle}>My Account</Text>
@@ -599,6 +785,7 @@ export const MemberView = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 updateMemberMutation.mutate();
               }}
               style={[styles.memberActionButton, {

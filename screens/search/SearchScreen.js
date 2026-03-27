@@ -180,6 +180,8 @@ export const SearchScreen = ({ navigation }) => {
   const [sortBy, setSortBy] = useState('default');
   const [filterBy, setFilterBy] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
   const [trendingProductIds, setTrendingProductIds] = useState([]);
   // Ensure skeleton shows long enough for the shimmer animation to be visible
   const [minSkeletonDone, setMinSkeletonDone] = useState(false);
@@ -299,8 +301,18 @@ export const SearchScreen = ({ navigation }) => {
     if (filterBy === 'in-stock') {
       result = result.filter(p => p.stock?.inStock !== false && p.stock?.quantity !== 0);
     } else if (filterBy === 'on-sale') {
-      result = result.filter(p => p.priceData?.discountedPrice && 
+      result = result.filter(p => p.priceData?.discountedPrice &&
         Number(p.priceData?.discountedPrice) < Number(p.priceData?.price));
+    }
+
+    // Apply price range filter
+    const minVal = priceMin !== '' ? parseFloat(priceMin) : null;
+    const maxVal = priceMax !== '' ? parseFloat(priceMax) : null;
+    if (minVal !== null && !isNaN(minVal)) {
+      result = result.filter(p => (Number(p.priceData?.price) || 0) >= minVal);
+    }
+    if (maxVal !== null && !isNaN(maxVal)) {
+      result = result.filter(p => (Number(p.priceData?.price) || 0) <= maxVal);
     }
 
     // Apply sort
@@ -326,7 +338,7 @@ export const SearchScreen = ({ navigation }) => {
     }
 
     return result;
-  }, [allProducts, debouncedQuery, selectedCategory, collections, sortBy, filterBy]);
+  }, [allProducts, debouncedQuery, selectedCategory, collections, sortBy, filterBy, priceMin, priceMax]);
 
   const handleProductPress = useCallback((product) => {
     Keyboard.dismiss();
@@ -486,6 +498,35 @@ export const SearchScreen = ({ navigation }) => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Price:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <TextInput
+                style={styles.priceInput}
+                placeholder="Min $"
+                placeholderTextColor={theme.colors.textMuted}
+                value={priceMin}
+                onChangeText={setPriceMin}
+                keyboardType="numeric"
+                maxLength={6}
+              />
+              <Text style={{ color: theme.colors.textMuted }}>–</Text>
+              <TextInput
+                style={styles.priceInput}
+                placeholder="Max $"
+                placeholderTextColor={theme.colors.textMuted}
+                value={priceMax}
+                onChangeText={setPriceMax}
+                keyboardType="numeric"
+                maxLength={6}
+              />
+              {(priceMin !== '' || priceMax !== '') && (
+                <TouchableOpacity onPress={() => { setPriceMin(''); setPriceMax(''); }} style={{ padding: 4 }}>
+                  <Ionicons name="close-circle" size={18} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       )}
@@ -649,6 +690,17 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: '#FFF',
+  },
+  priceInput: {
+    width: 70,
+    height: 32,
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: theme.colors.text,
   },
   loadingContainer: {
     flex: 1,
