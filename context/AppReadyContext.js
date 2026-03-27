@@ -1,14 +1,14 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
 
-const AppReadyContext = createContext({ markReady: () => {} });
+const AppReadyContext = createContext({ introComplete: false, markIntroComplete: () => {} });
 
 export const useAppReady = () => useContext(AppReadyContext);
 
 export const AppReadyProvider = ({ children }) => {
-  const [ready, setReady] = useState(false);
-  const markReady = useCallback(() => setReady(true), []);
+  const [introComplete, setIntroComplete] = useState(false);
+  const markIntroComplete = useCallback(() => setIntroComplete(true), []);
   return (
-    <AppReadyContext.Provider value={{ ready, markReady }}>
+    <AppReadyContext.Provider value={{ introComplete, markIntroComplete }}>
       {children}
     </AppReadyContext.Provider>
   );

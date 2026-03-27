@@ -12,18 +12,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppReady } from '../../context/AppReadyContext';
 import { theme } from '../../styles/theme';
 
+
 const { width, height } = Dimensions.get('window');
 
 const AGE_VERIFIED_KEY = '@age_verified';
 
 export const AgeVerification = ({ children }) => {
   const [isVerified, setIsVerified] = useState(null); // null = still checking
-  const { markReady } = useAppReady();
+  const { introComplete } = useAppReady();
 
   useEffect(() => {
     AsyncStorage.getItem(AGE_VERIFIED_KEY).then(val => {
       setIsVerified(val === 'true');
-      markReady(); // signal app is ready — intro overlay can now fade out
     });
   }, []);
 
@@ -36,12 +36,14 @@ export const AgeVerification = ({ children }) => {
     Linking.openURL('https://www.google.com');
   };
 
-  // Still reading AsyncStorage — show nothing to avoid flash
+  // Still reading AsyncStorage
   if (isVerified === null) return null;
 
-  if (isVerified) {
-    return children;
-  }
+  // Already verified — render app (loads behind intro overlay)
+  if (isVerified) return children;
+
+  // Not verified — wait for intro to finish before showing age gate
+  if (!introComplete) return null;
 
   return (
     <Modal
