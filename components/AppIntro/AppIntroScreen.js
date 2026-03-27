@@ -1,48 +1,67 @@
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, Image, StyleSheet, View } from 'react-native';
+import { AppReadyProvider, useAppReady } from '../../context/AppReadyContext';
 
-const INTRO_DURATION = 1600;
-const FADE_IN_MS = 400;
-const FADE_OUT_MS = 300;
+const MIN_SHOW_MS = 2200; // minimum time logo stays visible
+const FADE_OUT_MS = 350;
 
-export const AppIntroScreen = ({ children }) => {
-  const [done, setDone] = useState(false);
-  const fade = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.88)).current;
+const IntroOverlay = ({ children }) => {
+  const { ready } = useAppReady();
+  const [visible, setVisible] = useState(true);
+  const fade = useRef(new Animated.Value(1)).current;
+  const minDone = useRef(false);
+  const appReady = useRef(false);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
 
-    Animated.parallel([
-      Animated.timing(fade, { toValue: 1, duration: FADE_IN_MS, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
-    ]).start();
+    const minTimer = setTimeout(() => {
+      minDone.current = true;
+      if (appReady.current) fadeOut();
+    }, MIN_SHOW_MS);
 
-    const timer = setTimeout(() => {
-      Animated.timing(fade, { toValue: 0, duration: FADE_OUT_MS, useNativeDriver: true })
-        .start(() => setDone(true));
-    }, INTRO_DURATION);
-
-    return () => clearTimeout(timer);
+    return () => clearTimeout(minTimer);
   }, []);
 
-  if (done) return children;
+  useEffect(() => {
+    if (!ready) return;
+    appReady.current = true;
+    if (minDone.current) fadeOut();
+  }, [ready]);
+
+  const fadeOut = () => {
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: FADE_OUT_MS,
+      useNativeDriver: true,
+    }).start(() => setVisible(false));
+  };
 
   return (
-    <Animated.View style={[styles.container, { opacity: fade }]}>
-      <Animated.Image
-        source={require('../../assets/icon.png')}
-        style={[styles.logo, { transform: [{ scale }] }]}
-        resizeMode="contain"
-      />
-    </Animated.View>
+    <View style={{ flex: 1 }}>
+      {children}
+      {visible && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.overlay, { opacity: fade }]}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      )}
+    </View>
   );
 };
 
+export const AppIntroScreen = ({ children }) => (
+  <AppReadyProvider>
+    <IntroOverlay>{children}</IntroOverlay>
+  </AppReadyProvider>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  overlay: {
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
