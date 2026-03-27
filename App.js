@@ -7,7 +7,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 import * as Updates from "expo-updates";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as React from "react";
 import { useEffect } from "react";
 import "react-native-gesture-handler";
@@ -91,8 +90,6 @@ function App() {
         const check = await Updates.checkForUpdateAsync();
         if (check.isAvailable) {
           await Updates.fetchUpdateAsync();
-          // Flag the reload so AgeVerification skips re-prompting
-          await AsyncStorage.setItem('@ota_reload_ts', String(Date.now()));
           await Updates.reloadAsync();
         }
       } catch (_) {}

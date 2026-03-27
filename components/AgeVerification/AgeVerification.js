@@ -13,25 +13,20 @@ import { theme } from '../../styles/theme';
 
 const { width, height } = Dimensions.get('window');
 
-// In-memory flag: resets on every cold start (app killed + reopened).
-// When backgrounded/foregrounded the state persists — user is not re-prompted.
-let sessionVerified = false;
+const AGE_VERIFIED_KEY = '@age_verified';
 
 export const AgeVerification = ({ children }) => {
-  const [isVerified, setIsVerified] = useState(sessionVerified);
+  const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
-    // If this is an OTA reload (flagged within last 10s), skip the age gate
-    AsyncStorage.getItem('@ota_reload_ts').then(ts => {
-      if (ts && Date.now() - parseInt(ts, 10) < 10000) {
-        AsyncStorage.removeItem('@ota_reload_ts');
-        sessionVerified = true;
-        setIsVerified(true);
-      }
+    // Check if user has already verified age (persists across sessions and OTA updates)
+    AsyncStorage.getItem(AGE_VERIFIED_KEY).then(val => {
+      if (val === 'true') setIsVerified(true);
     });
   }, []);
-  const handleVerify = () => {
-    sessionVerified = true;
+
+  const handleVerify = async () => {
+    await AsyncStorage.setItem(AGE_VERIFIED_KEY, 'true');
     setIsVerified(true);
   };
 
