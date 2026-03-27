@@ -33,7 +33,7 @@ export const FAQ_CATEGORIES = [
       },
       { 
         q: 'Where can I pick up my order?', 
-        a: 'You can pick up your order at 35 Park Road, Grafton, Auckland, New Zealand.' 
+        a: 'You can pick up your order at 356 Karangahape Road, Auckland 1010, NZ.'
       },
       {
         q: 'How long does delivery take?',

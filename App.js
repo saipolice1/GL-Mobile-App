@@ -19,6 +19,7 @@ import { WixSessionProvider } from "./authentication/session";
 import { initializeAuthSession } from "./authentication/wixSystemLogin";
 import { TabBar } from "./components/Tabs/Tabs";
 import { AgeVerification } from "./components/AgeVerification/AgeVerification";
+import { AppIntroScreen } from "./components/AppIntro/AppIntroScreen";
 import { tabs } from "./data/tabs/data";
 import { theme as appTheme } from "./styles/theme";
 import { NotificationProvider } from "./context/NotificationContext";
@@ -166,6 +167,7 @@ function App() {
         <NotificationProvider onNotificationTap={handleNotificationTap}>
           <WixSessionProvider clientId={clientId}>
             <MemberHandler>
+              <AppIntroScreen>
               <AgeVerification>
                 <LoginHandler>
                 <NavigationContainer
@@ -224,6 +226,7 @@ function App() {
                 </NavigationContainer>
               </LoginHandler>
             </AgeVerification>
+              </AppIntroScreen>
           </MemberHandler>
           </WixSessionProvider>
           <NotificationPermissionBanner />

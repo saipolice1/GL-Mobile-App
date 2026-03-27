@@ -559,7 +559,6 @@ function CartView() {
   const [productModalVisible, setProductModalVisible] = React.useState(false);
   const [loadingProduct, setLoadingProduct] = React.useState(false);
   const [deliveryNote, setDeliveryNote] = React.useState('');
-  const [giftMessage, setGiftMessage] = React.useState('');
 
   const handleProductPress = async (cartItem) => {
     const productId = cartItem.catalogReference?.catalogItemId;
@@ -624,12 +623,9 @@ function CartView() {
       setCheckoutLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       // Save delivery note + gift message as buyerNote if provided
-      const parts = [];
-      if (deliveryNote.trim()) parts.push(deliveryNote.trim());
-      if (giftMessage.trim()) parts.push(`Gift message: ${giftMessage.trim()}`);
-      if (parts.length > 0) {
+      if (deliveryNote.trim()) {
         try {
-          await wixCient.currentCart.updateCurrentCart({ cartInfo: { buyerNote: parts.join('\n') } });
+          await wixCient.currentCart.updateCurrentCart({ cartInfo: { buyerNote: deliveryNote.trim() } });
         } catch (_) {}
       }
       const currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
@@ -757,18 +753,6 @@ function CartView() {
               placeholderTextColor={theme.colors.textMuted}
               value={deliveryNote}
               onChangeText={setDeliveryNote}
-              multiline
-              maxLength={200}
-            />
-          </View>
-          <View style={[cartStyles.noteInputWrapper, { marginTop: 8 }]}>
-            <Ionicons name="gift-outline" size={18} color={theme.colors.textMuted} style={{ marginTop: 2 }} />
-            <TextInput
-              style={cartStyles.noteInput}
-              placeholder="Gift message (optional)"
-              placeholderTextColor={theme.colors.textMuted}
-              value={giftMessage}
-              onChangeText={setGiftMessage}
               multiline
               maxLength={200}
             />

@@ -148,8 +148,12 @@ export const ChatScreen = () => {
   };
 
   const openGoogleMaps = () => {
-    const url = 'https://maps.app.goo.gl/5XX4R71WAmDz5oqu6';
-    Linking.openURL(url).catch((err) => console.error('Could not open map', err));
+    const url = Platform.OS === 'ios'
+      ? 'maps://?q=356+Karangahape+Road+Auckland+1010+New+Zealand'
+      : 'geo:0,0?q=356+Karangahape+Road+Auckland+1010+New+Zealand';
+    Linking.openURL(url).catch(() => {
+      Linking.openURL('https://maps.google.com/?q=356+Karangahape+Road+Auckland+1010+New+Zealand');
+    });
   };
 
   return (
@@ -217,12 +221,12 @@ export const ChatScreen = () => {
                                     style={styles.mapIcon}
                                   />
                                   <Text style={styles.addressText}>
-                                    35 Park Road, Grafton, Auckland, New Zealand
+                                    356 Karangahape Road, Auckland 1010, NZ
                                   </Text>
-                                  <Ionicons 
-                                    name="external-link" 
-                                    size={14} 
-                                    color={theme.colors.accent} 
+                                  <Ionicons
+                                    name="open-outline"
+                                    size={14}
+                                    color={theme.colors.accent}
                                     style={styles.linkIcon}
                                   />
                                 </View>
