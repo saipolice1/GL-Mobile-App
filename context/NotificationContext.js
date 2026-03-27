@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   registerForPushNotificationsAsync,
+  registerPushTokenWithWix,
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
 } from '../services/notifications';
@@ -94,6 +95,8 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
       if (token) {
         setExpoPushToken(token);
         setPermissionGranted(true);
+        // Save token immediately — no login required. MemberView will upgrade with memberId later.
+        registerPushTokenWithWix(null, token);
       } else {
         // Permission denied — show reminder if 48hrs have passed since last dismiss
         const raw = await AsyncStorage.getItem(REMINDER_KEY);

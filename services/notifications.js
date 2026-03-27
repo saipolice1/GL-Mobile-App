@@ -208,8 +208,8 @@ export async function sendCartReminderNotification(itemCount) {
 
 // Register push token with Wix backend for order notifications
 export async function registerPushTokenWithWix(memberId, pushToken) {
-  if (!memberId || !pushToken) {
-    console.log('⚠️ Cannot register push token: missing memberId or pushToken');
+  if (!pushToken) {
+    console.log('⚠️ Cannot register push token: missing pushToken');
     return false;
   }
 
@@ -220,14 +220,14 @@ export async function registerPushTokenWithWix(memberId, pushToken) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        memberId,
+        memberId: memberId || null,
         pushToken,
         platform: Platform.OS,
       }),
     });
 
     if (response.ok) {
-      console.log('✅ Push token registered with Wix for member:', memberId);
+      console.log('✅ Push token registered with Wix for member:', memberId || 'anonymous');
       return true;
     } else {
       const error = await response.text();
