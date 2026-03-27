@@ -632,6 +632,15 @@ function CartView() {
         channelType: currentCart.ChannelType.OTHER_PLATFORM,
       });
 
+      // Pre-fill New Zealand as the shipping country so checkout doesn't default to US
+      try {
+        await wixCient.checkout.updateCheckout(currentCheckout.checkoutId, {
+          shippingAddress: {
+            address: { country: 'NZ' },
+          },
+        });
+      } catch (_) {}
+
       const { redirectSession } = await wixCient.redirects.createRedirectSession({
         ecomCheckout: { checkoutId: currentCheckout.checkoutId },
         callbacks: {

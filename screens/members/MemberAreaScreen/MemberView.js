@@ -656,12 +656,12 @@ export const MemberView = ({ navigation }) => {
             <View style={{ gap: 10 }}>
               <View>
                 <RNText style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Grafton Liquor</RNText>
-                <RNText style={{ fontSize: 13, color: theme.colors.textMuted, marginTop: 3 }}>356 Karangahape Road, Auckland 1010, NZ</RNText>
+                <RNText style={{ fontSize: 13, color: theme.colors.textMuted, marginTop: 3 }}>35 Park Road, Grafton, Auckland 1023, New Zealand</RNText>
               </View>
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Linking.openURL('https://maps.google.com/?q=356+Karangahape+Road+Auckland+1010+New+Zealand');
+                  Linking.openURL('https://maps.google.com/?q=35+Park+Road+Grafton+Auckland+1023+New+Zealand');
                 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, backgroundColor: theme.colors.secondary, alignSelf: 'flex-start' }}
                 activeOpacity={0.8}
