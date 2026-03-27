@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Image, Linking, TextInput, View, TouchableOpacity, Text as RNText, ActivityIndicator, StyleSheet as RNStyleSheet, KeyboardAvoidingView, Platform, Alert, Modal } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
@@ -309,6 +309,9 @@ export const MemberView = ({ navigation }) => {
   const [addresses, setAddresses] = useState([]);
   const [showAddressInput, setShowAddressInput] = useState(false);
   const [newAddressText, setNewAddressText] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const addressDebounceRef = useRef(null);
 
   // Load profile photo and addresses from storage when member loads
   useEffect(() => {
@@ -342,6 +345,7 @@ export const MemberView = ({ navigation }) => {
     await AsyncStorage.setItem(`@saved_addresses_${currentMember._id}`, JSON.stringify(updated));
     setAddresses(updated);
     setNewAddressText('');
+    setAddressSuggestions([]);
     setShowAddressInput(false);
   };
 
@@ -349,6 +353,28 @@ export const MemberView = ({ navigation }) => {
     const updated = addresses.filter((_, i) => i !== index);
     await AsyncStorage.setItem(`@saved_addresses_${currentMember._id}`, JSON.stringify(updated));
     setAddresses(updated);
+  };
+
+  const handleAddressTextChange = (text) => {
+    setNewAddressText(text);
+    setAddressSuggestions([]);
+    if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+    if (text.length < 3) { setIsLoadingSuggestions(false); return; }
+    setIsLoadingSuggestions(true);
+    addressDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&addressdetails=1&countrycodes=nz&limit=5`,
+          { headers: { 'Accept-Language': 'en', 'User-Agent': 'GraftonLiquorApp/1.0' } }
+        );
+        const data = await res.json();
+        setAddressSuggestions(data.map(item => item.display_name));
+      } catch (_) {
+        setAddressSuggestions([]);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 400);
   };
 
   // Fetch current member on mount and when session changes
@@ -709,17 +735,43 @@ export const MemberView = ({ navigation }) => {
             ))}
             {showAddressInput ? (
               <View style={{ marginTop: 10, gap: 8 }}>
-                <TextInput
-                  style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, fontSize: 14, color: theme.colors.text }}
-                  placeholder="e.g. 123 Main St, Auckland"
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={newAddressText}
-                  onChangeText={setNewAddressText}
-                  autoFocus
-                />
+                <View>
+                  <TextInput
+                    style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, fontSize: 14, color: theme.colors.text }}
+                    placeholder="e.g. 123 Main St, Auckland"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={newAddressText}
+                    onChangeText={handleAddressTextChange}
+                    autoFocus
+                    autoCorrect={false}
+                  />
+                  {isLoadingSuggestions && (
+                    <View style={{ position: 'absolute', right: 10, top: 11 }}>
+                      <ActivityIndicator size="small" color={theme.colors.accent} />
+                    </View>
+                  )}
+                  {addressSuggestions.length > 0 && (
+                    <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, marginTop: 4, backgroundColor: theme.colors.surface, maxHeight: 200, overflow: 'hidden' }}>
+                      {addressSuggestions.map((suggestion, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          onPress={() => {
+                            setNewAddressText(suggestion);
+                            setAddressSuggestions([]);
+                          }}
+                          style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: idx < addressSuggestions.length - 1 ? 1 : 0, borderBottomColor: theme.colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="location-outline" size={14} color={theme.colors.accent} />
+                          <RNText style={{ fontSize: 13, color: theme.colors.text, flex: 1 }} numberOfLines={2}>{suggestion}</RNText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TouchableOpacity
-                    onPress={() => { setShowAddressInput(false); setNewAddressText(''); }}
+                    onPress={() => { setShowAddressInput(false); setNewAddressText(''); setAddressSuggestions([]); }}
                     style={{ flex: 1, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center' }}
                     activeOpacity={0.7}
                   >
