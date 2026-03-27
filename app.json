@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "scheme": "graftonliquor",
     "splash": {
-      "image": "./assets/adaptive-icon-foreground.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
