@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../styles/theme';
 
 const { width, height } = Dimensions.get('window');
@@ -18,6 +19,17 @@ let sessionVerified = false;
 
 export const AgeVerification = ({ children }) => {
   const [isVerified, setIsVerified] = useState(sessionVerified);
+
+  useEffect(() => {
+    // If this is an OTA reload (flagged within last 10s), skip the age gate
+    AsyncStorage.getItem('@ota_reload_ts').then(ts => {
+      if (ts && Date.now() - parseInt(ts, 10) < 10000) {
+        AsyncStorage.removeItem('@ota_reload_ts');
+        sessionVerified = true;
+        setIsVerified(true);
+      }
+    });
+  }, []);
   const handleVerify = () => {
     sessionVerified = true;
     setIsVerified(true);

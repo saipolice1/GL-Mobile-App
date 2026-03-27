@@ -99,7 +99,8 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
         const raw = await AsyncStorage.getItem(REMINDER_KEY);
         const lastShown = raw ? parseInt(raw, 10) : 0;
         if (Date.now() - lastShown >= REMINDER_INTERVAL_MS) {
-          setShowPermissionReminder(true);
+          // Delay so age verification has time to clear first
+          setTimeout(() => setShowPermissionReminder(true), 2000);
         }
       }
     });
