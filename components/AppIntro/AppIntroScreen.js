@@ -1,28 +1,31 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useQueryClient } from '@tanstack/react-query';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 import { wixCient } from '../../authentication/wixClient';
 import { AppReadyProvider, useAppReady } from '../../context/AppReadyContext';
 import { cacheProducts, getCachedProducts } from '../../services/productCache';
 
-const MIN_SHOW_MS = 3000;
+// Min time the logo is visible after it first appears on screen
+const MIN_SHOW_MS = 2800;
+// Hard cap — never block longer than this even on very slow networks
+const MAX_SHOW_MS = 7000;
 const FADE_OUT_MS = 400;
 
-// Captured once when module first loads — survives component remounts
-// so the timer always counts from the true app-start, not from a re-render
-let introStartedAt = Date.now();
+// Module-level: records when IntroOverlay's useEffect first fires (first paint).
+// Using a module-level var instead of a ref means remounts don't reset the clock.
+let _paintedAt = null;
 
 async function prefetchAllProducts(queryClient) {
   try {
-    // Already warm in React Query memory cache — nothing to do
-    const existing = queryClient.getQueryData(['all-products']);
-    if (existing?.length > 0) return;
+    // Already in RQ memory cache — nothing to do
+    if (queryClient.getQueryData(['all-products'])?.length > 0) return;
 
-    // AsyncStorage cache still fresh — populate RQ cache from it
+    // Fresh AsyncStorage cache — hydrate RQ from it (fast path)
     const stored = await getCachedProducts();
     if (stored?.length > 0) {
       queryClient.setQueryData(['all-products'], stored);
+      console.log(`✅ Hydrated ${stored.length} products from cache`);
       return;
     }
 
@@ -44,11 +47,10 @@ async function prefetchAllProducts(queryClient) {
     if (allItems.length > 0) {
       queryClient.setQueryData(['all-products'], allItems);
       await cacheProducts(allItems);
-      console.log(`✅ Prefetched ${allItems.length} products during intro`);
+      console.log(`✅ Prefetched ${allItems.length} products`);
     }
   } catch (e) {
-    // Fail silently — screens will fetch themselves normally
-    console.log('Product prefetch skipped:', e?.message);
+    console.log('Prefetch skipped:', e?.message);
   }
 }
 
@@ -57,31 +59,64 @@ const IntroOverlay = ({ children }) => {
   const queryClient = useQueryClient();
   const [overlayVisible, setOverlayVisible] = useState(true);
   const fade = useRef(new Animated.Value(1)).current;
+  const fadedOut = useRef(false);
+  const minReached = useRef(false);
+  const productsReady = useRef(false);
+
+  const doFadeOut = useCallback(() => {
+    if (fadedOut.current) return;
+    fadedOut.current = true;
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: FADE_OUT_MS,
+      useNativeDriver: true,
+    }).start(() => {
+      markIntroComplete();
+      setOverlayVisible(false);
+    });
+  }, []);
+
+  const checkDone = useCallback(() => {
+    if (minReached.current && productsReady.current) doFadeOut();
+  }, [doFadeOut]);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
 
-    // Fire product prefetch immediately — runs in background
-    prefetchAllProducts(queryClient);
+    // Capture when the screen was first painted (survives re-runs via _paintedAt guard)
+    if (!_paintedAt) _paintedAt = Date.now();
 
-    // Calculate how much of MIN_SHOW_MS is still left
-    // Uses module-level timestamp so remounts don't reset the clock
-    const elapsed = Date.now() - introStartedAt;
-    const remaining = Math.max(MIN_SHOW_MS - elapsed, 600);
+    // ── Min timer ─────────────────────────────────────────────────────────────
+    // Guarantees logo is visible for MIN_SHOW_MS from the moment it first painted.
+    // Accounts for any time already elapsed if this effect re-runs due to a remount.
+    const elapsed = Date.now() - _paintedAt;
+    const minRemaining = Math.max(MIN_SHOW_MS - elapsed, 400);
 
-    const timer = setTimeout(() => {
-      Animated.timing(fade, {
-        toValue: 0,
-        duration: FADE_OUT_MS,
-        useNativeDriver: true,
-      }).start(() => {
-        markIntroComplete();
-        setOverlayVisible(false);
-      });
-    }, remaining);
+    const minTimer = setTimeout(() => {
+      minReached.current = true;
+      checkDone();
+    }, minRemaining);
 
-    return () => clearTimeout(timer);
-  }, []);
+    // ── Max timer ─────────────────────────────────────────────────────────────
+    // Hard cap so a slow network never blocks the user indefinitely.
+    const maxTimer = setTimeout(() => {
+      productsReady.current = true;
+      checkDone();
+    }, Math.max(MAX_SHOW_MS - elapsed, minRemaining + 500));
+
+    // ── Product prefetch ──────────────────────────────────────────────────────
+    // Runs in background. When done, signals productsReady so the intro can end
+    // as soon as the min time is also up — no skeleton on first search.
+    prefetchAllProducts(queryClient).then(() => {
+      productsReady.current = true;
+      checkDone();
+    });
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+    };
+  }, [checkDone]);
 
   return (
     <View style={{ flex: 1 }}>
