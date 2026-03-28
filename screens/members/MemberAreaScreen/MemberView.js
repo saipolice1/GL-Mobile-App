@@ -28,6 +28,7 @@ import { WIX_PAGES } from "../../webview/WebViewScreen";
 import { useNotifications } from "../../../context/NotificationContext";
 import { registerPushTokenWithWix } from "../../../services/notifications";
 import { OTA_VERSION } from "../../../constants/otaVersion";
+import { WixMediaImage } from "../../../WixMediaImage";
 
 // Custom Accordion for MemberView
 const MemberAccordion = ({ title, children, defaultExpanded = false }) => {
@@ -241,10 +242,11 @@ const Orders = ({ navigation }) => {
               {/* First item thumbnail + name */}
               {order.lineItems?.length > 0 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                  <Image
-                    source={{ uri: order.lineItems[0].mediaItem?.url ?? 'https://via.placeholder.com/40' }}
-                    style={{ width: 40, height: 40, borderRadius: 6, backgroundColor: theme.colors.border }}
-                  />
+                  <WixMediaImage media={order.lineItems[0].mediaItem?.url} width={40} height={40}>
+                    {({ url }) => (
+                      <Image source={{ uri: url }} style={{ width: 40, height: 40, borderRadius: 6, backgroundColor: theme.colors.border }} />
+                    )}
+                  </WixMediaImage>
                   <View style={{ marginLeft: 10, flex: 1 }}>
                     <RNText style={{ color: theme.colors.text, fontWeight: '500', fontSize: 13 }} numberOfLines={1}>
                       {order.lineItems[0].name}

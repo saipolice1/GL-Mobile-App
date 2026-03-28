@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { wixCient } from '../../../authentication/wixClient';
 import { theme } from '../../../styles/theme';
 import Routes from '../../../routes/routes';
+import { WixMediaImage } from '../../../WixMediaImage';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
@@ -323,10 +324,9 @@ export function OrderDetailsScreen({ navigation, route }) {
         <SectionCard title={`Items (${order.lineItems?.length || 0})`}>
           {(order.lineItems || []).map((item, index) => (
             <View key={item.id || index} style={[styles.itemRow, index > 0 && styles.itemRowBorder]}>
-              <Image
-                source={{ uri: item.mediaItem?.url || 'https://via.placeholder.com/60' }}
-                style={styles.itemImage}
-              />
+              <WixMediaImage media={item.mediaItem?.url} width={60} height={60}>
+                {({ url }) => <Image source={{ uri: url }} style={styles.itemImage} />}
+              </WixMediaImage>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                 <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
