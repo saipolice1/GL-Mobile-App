@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -628,9 +629,17 @@ function CartView() {
           await wixCient.currentCart.updateCurrentCart({ cartInfo: { buyerNote: deliveryNote.trim() } });
         } catch (_) {}
       }
-      const currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
-        channelType: currentCart.ChannelType.OTHER_PLATFORM,
-      });
+
+      let currentCheckout;
+      try {
+        currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
+          channelType: currentCart.ChannelType.OTHER_PLATFORM,
+        });
+      } catch (err) {
+        console.error('[Checkout] createCheckoutFromCurrentCart failed:', err?.message, err?.response?.data ?? err);
+        Sentry.captureException(err, { tags: { step: 'createCheckout' } });
+        throw err;
+      }
 
       // Pre-fill New Zealand as the shipping country so checkout doesn't default to US
       try {
@@ -641,12 +650,19 @@ function CartView() {
         });
       } catch (_) {}
 
-      const { redirectSession } = await wixCient.redirects.createRedirectSession({
-        ecomCheckout: { checkoutId: currentCheckout.checkoutId },
-        callbacks: {
-          thankYouPageUrl: "https://www.graftonliquor.co.nz/store/checkout/thank-you",
-        },
-      });
+      let redirectSession;
+      try {
+        ({ redirectSession } = await wixCient.redirects.createRedirectSession({
+          ecomCheckout: { checkoutId: currentCheckout.checkoutId },
+          callbacks: {
+            thankYouPageUrl: "https://www.graftonliquor.co.nz/store/checkout/thank-you",
+          },
+        }));
+      } catch (err) {
+        console.error('[Checkout] createRedirectSession failed:', err?.message, err?.response?.data ?? err);
+        Sentry.captureException(err, { tags: { step: 'createRedirectSession', checkoutId: currentCheckout.checkoutId } });
+        throw err;
+      }
 
       return redirectSession;
     },
@@ -661,7 +677,12 @@ function CartView() {
     },
     onError: (error) => {
       setCheckoutLoading(false);
-      Alert.alert('Checkout Error', 'Failed to proceed to checkout. Please try again.');
+      const detail = error?.message || error?.response?.data?.message;
+      console.error('[Checkout] onError:', detail, error);
+      Alert.alert(
+        'Checkout Error',
+        detail ? `Failed to proceed to checkout:\n${detail}` : 'Failed to proceed to checkout. Please try again.'
+      );
     },
   });
 
