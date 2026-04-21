@@ -636,9 +636,7 @@ function CartView() {
           channelType: currentCart.ChannelType.OTHER_PLATFORM,
         });
       } catch (err) {
-        const isExpired = err?.details?.validationError?.fieldViolations?.some(
-          (v) => v.ruleName === 'EXPIRED_SESSION_CANT_BE_USED'
-        );
+        const isExpired = String(err?.message ?? err).includes('EXPIRED_SESSION_CANT_BE_USED');
         if (isExpired) {
           // Session expired — refresh silently and retry once
           console.log('[Checkout] Session expired, refreshing tokens...');
