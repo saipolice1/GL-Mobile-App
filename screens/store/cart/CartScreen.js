@@ -636,9 +636,31 @@ function CartView() {
           channelType: currentCart.ChannelType.OTHER_PLATFORM,
         });
       } catch (err) {
-        console.error('[Checkout] createCheckoutFromCurrentCart failed:', err?.message, err?.response?.data ?? err);
-        Sentry.captureException(err, { tags: { step: 'createCheckout' } });
-        throw err;
+        const isExpired = err?.details?.validationError?.fieldViolations?.some(
+          (v) => v.ruleName === 'EXPIRED_SESSION_CANT_BE_USED'
+        );
+        if (isExpired) {
+          // Session expired — refresh silently and retry once
+          console.log('[Checkout] Session expired, refreshing tokens...');
+          try {
+            const currentTokens = wixCient.auth.getTokens();
+            const newTokens = currentTokens?.refreshToken
+              ? await wixCient.auth.renewToken(currentTokens.refreshToken)
+              : await wixCient.auth.generateVisitorTokens();
+            wixCient.auth.setTokens(newTokens);
+            currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
+              channelType: currentCart.ChannelType.OTHER_PLATFORM,
+            });
+          } catch (retryErr) {
+            console.error('[Checkout] Retry after session refresh failed:', retryErr?.message);
+            Sentry.captureException(retryErr, { tags: { step: 'createCheckout_retry' } });
+            throw retryErr;
+          }
+        } else {
+          console.error('[Checkout] createCheckoutFromCurrentCart failed:', err?.message, err?.response?.data ?? err);
+          Sentry.captureException(err, { tags: { step: 'createCheckout' } });
+          throw err;
+        }
       }
 
       // Pre-fill New Zealand as the shipping country so checkout doesn't default to US
