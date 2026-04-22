@@ -89,11 +89,18 @@ export function WixSessionProvider(props) {
             
             // Check if it's a member token (has refreshToken) or visitor token
             if (storedSession.tokens.refreshToken) {
-              console.log("Found member session, restoring...");
-              wixCient.auth.setTokens(storedSession.tokens);
-              setSessionState(storedSession.tokens);
-              setSessionLoading(false);
-              return;
+              console.log("Found member session, refreshing tokens proactively...");
+              try {
+                const freshTokens = await wixCient.auth.renewToken(storedSession.tokens.refreshToken);
+                await setSession(freshTokens);
+                console.log("Member session refreshed successfully");
+                return;
+              } catch (renewErr) {
+                // Refresh token expired (>2 weeks inactive) — clear and fall back to visitor
+                console.log("Member refresh token expired, clearing session:", renewErr?.message);
+                await SecureStore.deleteItemAsync("wixSession");
+                // Fall through to newVisitorSession()
+              }
             } else {
               console.log("Found visitor session, creating fresh one...");
             }

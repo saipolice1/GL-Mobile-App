@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { currentCart } from "@wix/ecom";
 import * as Haptics from 'expo-haptics';
 import * as Linking from "expo-linking";
+import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from "expo-linear-gradient";
 import _, { isInteger } from "lodash";
 import * as React from "react";
@@ -642,16 +643,30 @@ function CartView() {
           console.log('[Checkout] Session expired, refreshing tokens...');
           try {
             const currentTokens = wixCient.auth.getTokens();
-            const newTokens = currentTokens?.refreshToken
-              ? await wixCient.auth.renewToken(currentTokens.refreshToken)
-              : await wixCient.auth.generateVisitorTokens();
+            let newTokens;
+            if (currentTokens?.refreshToken) {
+              try {
+                newTokens = await wixCient.auth.renewToken(currentTokens.refreshToken);
+              } catch (renewErr) {
+                // Refresh token itself is expired (>2 weeks inactive) — clear stored session
+                console.log('[Checkout] renewToken failed, session fully expired:', renewErr?.message);
+                Sentry.captureException(renewErr, { tags: { step: 'renewToken' } });
+                try { await SecureStore.deleteItemAsync('wixSession'); } catch (_) {}
+                const sessionExpiredErr = new Error('__SESSION_EXPIRED__');
+                throw sessionExpiredErr;
+              }
+            } else {
+              newTokens = await wixCient.auth.generateVisitorTokens();
+            }
             wixCient.auth.setTokens(newTokens);
             currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
               channelType: currentCart.ChannelType.OTHER_PLATFORM,
             });
           } catch (retryErr) {
             console.error('[Checkout] Retry after session refresh failed:', retryErr?.message);
-            Sentry.captureException(retryErr, { tags: { step: 'createCheckout_retry' } });
+            if (retryErr?.message !== '__SESSION_EXPIRED__') {
+              Sentry.captureException(retryErr, { tags: { step: 'createCheckout_retry' } });
+            }
             throw retryErr;
           }
         } else {
@@ -697,6 +712,17 @@ function CartView() {
     },
     onError: (error) => {
       setCheckoutLoading(false);
+      if (error?.message === '__SESSION_EXPIRED__') {
+        Alert.alert(
+          'Session Expired',
+          'Your login session has expired. Please log in again to continue.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Log In', onPress: () => navigation.navigate(Routes.Profile) },
+          ]
+        );
+        return;
+      }
       const detail = error?.message || error?.response?.data?.message;
       console.error('[Checkout] onError:', detail, error);
       Alert.alert(
