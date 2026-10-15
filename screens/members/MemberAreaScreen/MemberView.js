@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { formatOrderDate } from "../../../utils/formatOrderDate";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,6 +24,7 @@ import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIn
 import { styles } from "../../../styles/members/styles";
 import { usePrice } from "../../store/price";
 import Routes from "../../../routes/routes";
+import { TAB_BAR_CLEARANCE } from "../../../constants/layout";
 import { WIX_PAGES } from "../../webview/WebViewScreen";
 import { useNotifications } from "../../../context/NotificationContext";
 import { registerPushTokenWithWix } from "../../../services/notifications";
@@ -217,7 +218,7 @@ const Orders = ({ navigation }) => {
   });
 
   if (myOrdersQuery.isLoading) return <LoadingIndicator />;
-  if (myOrdersQuery.isError) return <ErrorView message={myOrdersQuery.error.message} />;
+  if (myOrdersQuery.isError) return <ErrorView message={myOrdersQuery.error.message} onRetry={myOrdersQuery.refetch} />;
 
   const orders = myOrdersQuery.data?.orders || [];
 
@@ -227,6 +228,7 @@ const Orders = ({ navigation }) => {
         const statusColor = STATUS_COLORS[order.fulfillmentStatus] || theme.colors.textMuted;
         const statusLabel = STATUS_LABELS[order.fulfillmentStatus] || order.fulfillmentStatus;
         const isReordering = reordering === order.id;
+        const orderDate = formatOrderDate(order.dateCreated, "MMM dd, yyyy");
         return (
           <View key={order.id} style={{ marginBottom: 12 }}>
             <View style={{ backgroundColor: theme.colors.background, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, padding: 14 }}>
@@ -235,10 +237,12 @@ const Orders = ({ navigation }) => {
                 <RNText style={{ fontSize: 15, fontWeight: '700', color: theme.colors.text }}>Order #{order.number}</RNText>
                 <RNText style={{ fontSize: 12, fontWeight: '600', color: statusColor }}>{statusLabel}</RNText>
               </View>
-              {/* Row 2: Date */}
-              <RNText style={{ color: theme.colors.textMuted, fontSize: 13, marginBottom: 10 }}>
-                {format(new Date(order.dateCreated), "MMM dd, yyyy")}
-              </RNText>
+              {/* Row 2: Date (hidden if the date can't be parsed) */}
+              {orderDate ? (
+                <RNText style={{ color: theme.colors.textMuted, fontSize: 13, marginBottom: 10 }}>
+                  {orderDate}
+                </RNText>
+              ) : null}
               {/* First item thumbnail + name */}
               {order.lineItems?.length > 0 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
@@ -592,7 +596,7 @@ export const MemberView = ({ navigation }) => {
           bouncesZoom={false}
           automaticallyAdjustKeyboardInsets={true}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
         >
         <View style={styles.memberHeader} />
         <View style={styles.memberSection}>

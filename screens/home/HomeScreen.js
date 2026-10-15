@@ -114,11 +114,7 @@ export const HomeScreen = ({ navigation }) => {
 
         // No cache - fetch from API
         const response = await wixCient.collections.queryCollections().find();
-        // Log all collections for debugging
-        console.log('=== WIX COLLECTIONS ===');
-        response?.items?.forEach(c => console.log(`Name: "${c.name}" | Slug: "${c.slug}" | ID: ${c._id}`));
-        console.log('=======================');
-        
+
         // Cache for next time
         if (response?.items?.length > 0) {
           cacheCollections(response.items);
@@ -134,7 +130,12 @@ export const HomeScreen = ({ navigation }) => {
   });
 
   // Fetch products based on selected category (with caching for all-products)
-  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+  const {
+    data: products = [],
+    isLoading: isLoadingProducts,
+    refetch: refetchProducts,
+    isRefetching: isRefetchingProducts,
+  } = useQuery({
     queryKey: ['products', selectedCategory, collections],
     queryFn: async () => {
       try {
@@ -553,6 +554,8 @@ export const HomeScreen = ({ navigation }) => {
             onProductPress={handleProductPress}
             onAddToCart={handleProductPress}
             isLoading={isLoadingProducts}
+            onRefresh={refetchProducts}
+            refreshing={isRefetchingProducts}
             categoryName={isAllCategory ? null : currentCategoryName}
             isBestSellersCategory={isBestSellersCategory}
             hideEmptyMessage={isAllCategory}

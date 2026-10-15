@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Keyboard,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -19,9 +20,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { IS_TABLET, rs } from '../../utils/responsive';
 import { wixCient } from '../../authentication/wixClient';
-import { getCachedProducts } from '../../services/productCache';
+import { getCachedProducts, clearProductCache } from '../../services/productCache';
+import { getRecentSearches, addRecentSearch, clearRecentSearches } from '../../utils/recentSearches';
+import { TAB_BAR_CLEARANCE } from '../../constants/layout';
+import { LowStockBadge, InCartBadge } from '../../components/Badges/ProductBadges';
 import { ProductModal } from '../../components/ProductModal/ProductModal';
-import { SkeletonGrid } from '../../components/Home/SkeletonProductCard';
+import { SkeletonGrid, SkeletonProductCard, useShimmer } from '../../components/Home/SkeletonProductCard';
 import { CATEGORIES_DATA } from '../../components/Home/CategoryBarWithIcons';
 import Routes from '../../routes/routes';
 import { getBestSellersAlgorithmId, getRecommendations } from '../../utils/wixRecommendations';
@@ -107,12 +111,9 @@ const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false, tren
           </View>
         )}
         {/* Low Stock Badge - Bottom Left */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <View style={styles.lowStockDot} />
-            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-          </View>
-        )}
+        {showLowStock && <LowStockBadge quantity={stockQuantity} />}
+        {/* In-cart quantity badge */}
+        <InCartBadge productId={product?._id} />
         {!isOutOfStock && (
           <TouchableOpacity 
             style={styles.addButton}
@@ -174,6 +175,18 @@ const CategoryChip = ({ category, isSelected, onPress }) => {
 export const SearchScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [recentSearches, setRecentSearches] = useState([]);
+
+  // Load recent searches once on mount
+  useEffect(() => {
+    getRecentSearches().then(setRecentSearches);
+  }, []);
+
+  // Persist a search term and refresh the recent list
+  const recordSearch = useCallback((term) => {
+    addRecentSearch(term).then(setRecentSearches);
+  }, []);
+
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null); // null = all
@@ -232,7 +245,7 @@ export const SearchScreen = ({ navigation }) => {
   });
 
   // Fetch all products — use shared AsyncStorage cache first (populated by HomeScreen)
-  const { data: allProducts = [], isLoading: isLoadingAll } = useQuery({
+  const { data: allProducts = [], isLoading: isLoadingAll, refetch, isRefetching } = useQuery({
     queryKey: ['all-products'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
@@ -274,6 +287,13 @@ export const SearchScreen = ({ navigation }) => {
       }
     },
   });
+
+  // Shimmer for placeholder cards shown during pull-to-refresh
+  const shimmer = useShimmer(isRefetching);
+  const skeletonItems = useMemo(
+    () => Array.from({ length: 9 }, (_, i) => ({ _id: `__skeleton_${i}`, __skeleton: true })),
+    []
+  );
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
@@ -342,9 +362,12 @@ export const SearchScreen = ({ navigation }) => {
 
   const handleProductPress = useCallback((product) => {
     Keyboard.dismiss();
+    if (debouncedQuery.length >= 2) {
+      recordSearch(debouncedQuery);
+    }
     setSelectedProduct(product);
     setProductModalVisible(true);
-  }, []);
+  }, [debouncedQuery, recordSearch]);
 
   const handleCloseModal = useCallback(() => {
     setProductModalVisible(false);
@@ -364,14 +387,17 @@ export const SearchScreen = ({ navigation }) => {
     setSelectedCategory(selectedCategory === slug ? null : slug);
   };
 
-  const renderProduct = ({ item }) => (
-    <ProductCard 
-      product={item} 
-      onPress={handleProductPress}
-      onAddToCart={handleProductPress}
-      trendingProductIds={trendingProductIds}
-    />
-  );
+  const renderProduct = ({ item }) =>
+    item.__skeleton ? (
+      <SkeletonProductCard cardWidth={(width - 64) / 3} shimmer={shimmer} />
+    ) : (
+      <ProductCard 
+        product={item} 
+        onPress={handleProductPress}
+        onAddToCart={handleProductPress}
+        trendingProductIds={trendingProductIds}
+      />
+    );
 
   const renderHeader = () => (
     <View style={styles.resultsHeader}>
@@ -422,6 +448,7 @@ export const SearchScreen = ({ navigation }) => {
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
+            onSubmitEditing={() => recordSearch(searchQuery)}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
@@ -445,6 +472,46 @@ export const SearchScreen = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Recent Searches */}
+      {searchQuery.length === 0 && recentSearches.length > 0 && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary }}>Recent Searches</Text>
+            <TouchableOpacity
+              onPress={() => clearRecentSearches().then(setRecentSearches)}
+              accessibilityRole="button"
+              accessibilityLabel="Clear recent searches"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={{ fontSize: 12, color: theme.colors.textMuted }}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {recentSearches.map((term) => (
+              <TouchableOpacity
+                key={term}
+                onPress={() => setSearchQuery(term)}
+                accessibilityRole="button"
+                accessibilityLabel={`Search for ${term}`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: theme.colors.chipBackground,
+                  borderRadius: 16,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  marginRight: 8,
+                }}
+              >
+                <Ionicons name="time-outline" size={13} color={theme.colors.textMuted} />
+                <Text style={{ fontSize: 13, color: theme.colors.chipText }}>{term}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Category Filter Chips */}
       <View style={styles.categoryChipsWrapper}>
@@ -536,9 +603,9 @@ export const SearchScreen = ({ navigation }) => {
         <SkeletonGrid />
       ) : (
         <FlatList
-          data={filteredAndSortedProducts}
+          data={isRefetching ? skeletonItems : filteredAndSortedProducts}
           renderItem={renderProduct}
-          keyExtractor={(item) => item._id || item.id || Math.random().toString()}
+          keyExtractor={(item, index) => item._id || item.id || String(index)}
           numColumns={3}
           columnWrapperStyle={styles.productRow}
           contentContainerStyle={styles.productsList}
@@ -548,6 +615,16 @@ export const SearchScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           onScrollBeginDrag={() => Keyboard.dismiss()}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={async () => {
+                await clearProductCache();
+                refetch();
+              }}
+              tintColor={theme.colors.text}
+            />
+          }
         />
       )}
 
@@ -709,7 +786,7 @@ const styles = StyleSheet.create({
   },
   productsList: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   productRow: {
     justifyContent: 'space-between',

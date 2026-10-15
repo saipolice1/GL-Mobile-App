@@ -10,13 +10,20 @@ import { wixCient } from '../authentication/wixClient';
 // Wix Stores App ID (required for recommendations)
 const WIX_STORES_APP_ID = '215238eb-22a5-4c36-9e7b-e7c08025e04e';
 
-// Cache for algorithm ID to avoid repeated API calls
-let cachedBestSellersAlgorithmId = null;
+// Cache for algorithm ID to avoid repeated API calls.
+// undefined = not looked up yet, null = looked up but no "Best sellers" algorithm exists
+let cachedBestSellersAlgorithmId;
+
+// Cache for the algorithm list, plus the in-flight request so concurrent callers share it
+let cachedAlgorithms = null;
+let algorithmsPromise = null;
 
 // Cache for best sellers results to avoid repeated API calls and keep consistent results
+let bestSellersPromise = null; // in-flight request shared by concurrent callers
 let cachedBestSellers = null;
 let bestSellersCacheTime = null;
 const BEST_SELLERS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_BEST_SELLERS_LIMIT = 21;
 
 /**
  * Get access token from the Wix client
@@ -40,10 +47,12 @@ const getSiteUrl = () => {
 };
 
 /**
- * List available recommendation algorithms
- * GET https://www.wixapis.com/v1/recommendations/algorithms
+ * Fetch available recommendation algorithms from the API
+ * GET https://www.wixapis.com/ecom/v1/recommendations/algorithms
+ *
+ * Returns null on network/unexpected errors so the result is not cached.
  */
-export const listRecommendationAlgorithms = async () => {
+const fetchRecommendationAlgorithms = async () => {
   try {
     const accessToken = await getAccessToken();
     if (!accessToken) {
@@ -66,16 +75,34 @@ export const listRecommendationAlgorithms = async () => {
     }
 
     const data = await response.json();
-    console.log('=== AVAILABLE ALGORITHMS ===');
-    data?.algorithms?.forEach(alg => {
-      console.log(`Name: "${alg.name}" | ID: ${alg._id} | AppId: ${alg.appId}`);
-    });
-    console.log('============================');
-    
     return data?.algorithms || [];
   } catch (error) {
     console.log('Error listing algorithms:', error);
-    return [];
+    return null;
+  }
+};
+
+/**
+ * List available recommendation algorithms
+ * Cached after the first successful fetch; concurrent callers share one request.
+ */
+export const listRecommendationAlgorithms = async () => {
+  if (cachedAlgorithms) {
+    return cachedAlgorithms;
+  }
+  if (algorithmsPromise) {
+    return algorithmsPromise;
+  }
+
+  algorithmsPromise = fetchRecommendationAlgorithms();
+  try {
+    const algorithms = await algorithmsPromise;
+    if (algorithms) {
+      cachedAlgorithms = algorithms;
+    }
+    return algorithms || [];
+  } finally {
+    algorithmsPromise = null;
   }
 };
 
@@ -83,32 +110,27 @@ export const listRecommendationAlgorithms = async () => {
  * Find the "Best Sellers" algorithm ID
  */
 export const getBestSellersAlgorithmId = async () => {
-  if (cachedBestSellersAlgorithmId) {
+  if (cachedBestSellersAlgorithmId !== undefined) {
     return cachedBestSellersAlgorithmId;
   }
 
   const algorithms = await listRecommendationAlgorithms();
-  
-  // Look for "Best sellers" algorithm (exact match preferred)
-  let bestSellersAlg = algorithms.find(alg => 
-    alg.name?.toLowerCase() === 'best sellers' ||
-    alg.name?.toLowerCase() === 'bestsellers'
-  );
 
-  // If not found, try partial matches
-  if (!bestSellersAlg) {
-    bestSellersAlg = algorithms.find(alg => 
+  // Look for "Best sellers" algorithm (exact match preferred),
+  // otherwise try partial matches
+  const bestSellersAlg =
+    algorithms.find(alg =>
+      alg.name?.toLowerCase() === 'best sellers' ||
+      alg.name?.toLowerCase() === 'bestsellers'
+    ) ||
+    algorithms.find(alg =>
       alg.name?.toLowerCase().includes('best seller') ||
       alg.name?.toLowerCase().includes('bestseller')
     );
-  }
 
-  if (bestSellersAlg) {
-    cachedBestSellersAlgorithmId = bestSellersAlg._id;
-    return bestSellersAlg._id;
-  }
-
-  return null;
+  // Cache the miss too (null) so we don't keep re-querying
+  cachedBestSellersAlgorithmId = bestSellersAlg?._id ?? null;
+  return cachedBestSellersAlgorithmId;
 };
 
 /**
@@ -214,7 +236,44 @@ export const getProductsByIds = async (productIds) => {
 
 /**
  * Main function: Get Best Sellers products
- * 
+ *
+ * Returns cached results when fresh, and shares a single in-flight request
+ * between concurrent callers (e.g. several home sections mounting at once).
+ *
+ * @param {number} limit - Maximum number of products to return (default: 21)
+ * @param {boolean} forceRefresh - Force refresh cache (default: false)
+ */
+export const getBestSellers = async (limit = 21, forceRefresh = false) => {
+  // Check cache first (unless force refresh)
+  if (!forceRefresh && cachedBestSellers && bestSellersCacheTime) {
+    const cacheAge = Date.now() - bestSellersCacheTime;
+    if (cacheAge < BEST_SELLERS_CACHE_DURATION) {
+      return cachedBestSellers.slice(0, limit);
+    }
+  }
+
+  // Reuse a request that is already in flight
+  if (!forceRefresh && bestSellersPromise) {
+    const products = await bestSellersPromise;
+    return (products || []).slice(0, limit);
+  }
+
+  // Always fetch at least the default amount so the shared result suits every caller
+  bestSellersPromise = getBestSellersUncached(
+    Math.max(limit, DEFAULT_BEST_SELLERS_LIMIT),
+    forceRefresh
+  );
+  try {
+    const products = await bestSellersPromise;
+    return (products || []).slice(0, limit);
+  } finally {
+    bestSellersPromise = null;
+  }
+};
+
+/**
+ * Fetch Best Sellers products (no request de-duplication)
+ *
  * 1. Gets the "Best sellers" algorithm ID
  * 2. Fetches recommendations using that algorithm
  * 3. Converts item IDs to full product data
@@ -223,7 +282,7 @@ export const getProductsByIds = async (productIds) => {
  * @param {number} limit - Maximum number of products to return (default: 21)
  * @param {boolean} forceRefresh - Force refresh cache (default: false)
  */
-export const getBestSellers = async (limit = 21, forceRefresh = false) => {
+const getBestSellersUncached = async (limit = 21, forceRefresh = false) => {
   // Check cache first (unless force refresh)
   if (!forceRefresh && cachedBestSellers && bestSellersCacheTime) {
     const now = Date.now();
