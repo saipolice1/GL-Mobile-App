@@ -30,10 +30,21 @@ export const theme = {
     error: '#E53935',
     warning: '#F9A825',
     info: '#1976D2',
-    
-    // Tab bar - Clean white with black active
+
+    // Stock status
+    stockOut: '#B22D1D',
+
+    // Back-in-stock notification states
+    notifySubscribedBg: '#E8F5E9',
+    notifySubscribedBorder: '#4CAF50',
+    notifySubscribedText: '#2E7D32',
+    notifyPendingBg: '#FFF8E1',
+    notifyPendingBorder: '#FFA000',
+    notifyPendingText: '#E65100',
+
+    // Tab bar - Clean white with brown active
     tabBar: '#FFFFFF',
-    tabBarActive: '#000000',
+    tabBarActive: '#5D4037',
     tabBarInactive: '#8A8A8A',
     
     // Cart/checkout
