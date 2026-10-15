@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { WixMediaImage } from '../../WixMediaImage';
 import { theme } from '../../styles/theme';
 import { CATEGORIES_DATA } from './CategoryBarWithIcons';
+import { LowStockBadge, InCartBadge } from '../Badges/ProductBadges';
 
 // Horizontal Product Card for category sliders
 const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) => {
@@ -64,12 +65,9 @@ const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) =>
           </View>
         )}
         {/* Low Stock Badge - Bottom Left */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <View style={styles.lowStockDot} />
-            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-          </View>
-        )}
+        {showLowStock && <LowStockBadge quantity={stockQuantity} />}
+        {/* In-cart quantity badge */}
+        <InCartBadge productId={product?._id} />
         {/* Smaller Add Button with muted color */}
         {!isOutOfStock && (
           <TouchableOpacity 

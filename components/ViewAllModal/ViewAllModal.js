@@ -10,6 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { InCartBadge, LowStockBadge } from '../Badges/ProductBadges';
 import { theme } from '../../styles/theme';
 import { WixMediaImage } from '../../WixMediaImage';
 import { EmbeddedProductModal } from '../ProductModal/EmbeddedProductModal';
@@ -84,12 +85,10 @@ const GridProductCard = ({ product, onPress, trendingProductIds = [] }) => {
         )}
         
         {/* Low Stock Badge - Bottom Left */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <View style={styles.lowStockDot} />
-            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-          </View>
-        )}
+        {showLowStock && <LowStockBadge quantity={stockQuantity} />}
+
+        {/* In Cart Badge */}
+        <InCartBadge productId={product?._id} />
 
         {/* Add to cart button - tapping opens product modal */}
         {!isOutOfStock && (

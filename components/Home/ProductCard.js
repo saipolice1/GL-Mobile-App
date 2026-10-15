@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, useWindowDimensions } 
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
 import { IS_TABLET, rs } from '../../utils/responsive';
+import { LowStockBadge, InCartBadge } from '../Badges/ProductBadges';
 
 export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = false, trendingProductIds = [] }) => {
   const { width } = useWindowDimensions();
@@ -52,6 +53,8 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
       style={[styles.container, { width: CARD_WIDTH }]} 
       onPress={() => onPress?.(product)}
       activeOpacity={0.9}
+      accessibilityRole="button"
+      accessibilityLabel={isOutOfStock ? `${name}, sold out` : name}
     >
       <View style={styles.imageContainer}>
         <Image
@@ -68,12 +71,10 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
         )}
         {/* Low Stock Badge - Priority over Trending */}
         {showLowStock && (
-          <View style={styles.sellingFastBadge}>
-            <View style={styles.sellingFastDot} />
-            <Text style={styles.sellingFastText}>
-              {stockQuantity !== undefined ? `Only ${stockQuantity} left` : 'Selling Fast'}
-            </Text>
-          </View>
+          <LowStockBadge
+            quantity={stockQuantity}
+            label={stockQuantity === undefined ? 'Selling Fast' : undefined}
+          />
         )}
         {/* Trending Badge - Only if NOT low stock */}
         {showTrending && (
@@ -81,6 +82,8 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
             <Text style={styles.fireEmoji}>🔥</Text>
           </View>
         )}
+        {/* In-cart quantity badge - top-right */}
+        <InCartBadge productId={product?._id} />
         {/* Improved Add to Cart Button - More visible with white background and shadow */}
         {!isOutOfStock && (
           <TouchableOpacity 
@@ -90,6 +93,9 @@ export const ProductCard = ({ product, onPress, onAddToCart, isBestSeller = fals
               onAddToCart?.(product);
             }}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${name} to cart`}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Ionicons name="add" size={18} color={theme.colors.secondary} style={{ fontWeight: 'bold' }} />
           </TouchableOpacity>
@@ -138,6 +144,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  inCartBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    zIndex: 2,
+  },
+  inCartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   bestSellerBadge: {
     position: 'absolute',

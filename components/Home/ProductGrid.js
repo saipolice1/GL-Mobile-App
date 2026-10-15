@@ -1,7 +1,9 @@
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, FlatList, StyleSheet, RefreshControl, useWindowDimensions } from 'react-native';
 import { ProductCard } from './ProductCard';
 import { theme } from '../../styles/theme';
-import { SkeletonGrid } from './SkeletonProductCard';
+import { SkeletonGrid, SkeletonProductCard, useShimmer } from './SkeletonProductCard';
+import { TAB_BAR_CLEARANCE } from '../../constants/layout';
 
 export const ProductGrid = ({ 
   products, 
@@ -15,23 +17,42 @@ export const ProductGrid = ({
   onScroll,
   hideEmptyMessage = false,
   trendingProductIds = [],
+  onRefresh,
+  refreshing,
 }) => {
-  
+  const { width } = useWindowDimensions();
+  const isRefreshing = Boolean(refreshing);
+  const shimmer = useShimmer(isRefreshing);
+  const skeletonCardWidth = (width - 64) / 3;
+
+  // Placeholder items shown in the grid while a pull-to-refresh is in progress
+  const skeletonItems = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, index) => ({
+        _id: `__skeleton_${index}`,
+        __skeleton: true,
+      })),
+    []
+  );
+
   if (isLoading) {
     return (
       <SkeletonGrid />
     );
   }
 
-  const renderItem = ({ item }) => (
-    <ProductCard 
-      product={item} 
-      onPress={onProductPress}
-      onAddToCart={onAddToCart}
-      isBestSeller={isBestSellersCategory}
-      trendingProductIds={trendingProductIds}
-    />
-  );
+  const renderItem = ({ item }) =>
+    item.__skeleton ? (
+      <SkeletonProductCard cardWidth={skeletonCardWidth} shimmer={shimmer} />
+    ) : (
+      <ProductCard
+        product={item}
+        onPress={onProductPress}
+        onAddToCart={onAddToCart}
+        isBestSeller={isBestSellersCategory}
+        trendingProductIds={trendingProductIds}
+      />
+    );
 
   const renderHeader = () => (
     <View>
@@ -61,9 +82,9 @@ export const ProductGrid = ({
 
   return (
     <FlatList
-      data={products}
+      data={isRefreshing ? skeletonItems : products}
       renderItem={renderItem}
-      keyExtractor={(item) => item._id || item.id || Math.random().toString()}
+      keyExtractor={(item, index) => item._id || item.id || String(index)}
       numColumns={3}
       columnWrapperStyle={styles.row}
       contentContainerStyle={styles.container}
@@ -73,6 +94,15 @@ export const ProductGrid = ({
       ListEmptyComponent={renderEmpty}
       onScroll={onScroll}
       scrollEventThrottle={16}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={Boolean(refreshing)}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.text}
+          />
+        ) : undefined
+      }
     />
   );
 };
@@ -80,7 +110,7 @@ export const ProductGrid = ({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: TAB_BAR_CLEARANCE,
     backgroundColor: theme.colors.background,
   },
   row: {

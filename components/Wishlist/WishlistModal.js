@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { LowStockBadge, InCartBadge } from '../Badges/ProductBadges';
 import { 
   getFavorites, 
   subscribeFavorites,
@@ -73,12 +74,10 @@ const WishlistGridCard = ({ item, onPress }) => {
         )}
         
         {/* Low Stock Badge - Bottom Left */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <View style={styles.lowStockDot} />
-            <Text style={styles.lowStockText}>Only {item.stockQuantity} left</Text>
-          </View>
-        )}
+        {showLowStock && <LowStockBadge quantity={item.stockQuantity} />}
+
+        {/* In Cart Badge */}
+        <InCartBadge productId={item?._id || item?.id} />
 
         {/* Add to cart indicator - tapping opens product modal */}
         {!isOutOfStock && (

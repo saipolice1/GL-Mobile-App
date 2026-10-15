@@ -4,6 +4,7 @@ import { IS_TABLET, rs } from '../../utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { WixMediaImage } from '../../WixMediaImage';
 import { getRecentlyViewed } from '../../utils/recentlyViewed';
+import { LowStockBadge, InCartBadge } from '../Badges/ProductBadges';
 import { theme } from '../../styles/theme';
 
 const RecentlyViewedCard = ({ product, onPress, trendingProductIds = [] }) => {
@@ -55,11 +56,9 @@ const RecentlyViewedCard = ({ product, onPress, trendingProductIds = [] }) => {
           </View>
         )}
         {/* Low Stock Badge - Bottom Left */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-          </View>
-        )}
+        {showLowStock && <LowStockBadge quantity={stockQuantity} />}
+        {/* In Cart Badge */}
+        <InCartBadge productId={product?._id} />
       </View>
       <Text style={[styles.name, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>{product.name}</Text>
       <Text style={[styles.price, isOutOfStock && styles.textGrayedOut]}>{price}</Text>

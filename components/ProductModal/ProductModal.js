@@ -11,6 +11,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -121,6 +122,17 @@ export const ProductModal = ({
   // Get the product's primary collection ID (first one in array)
   const productCollectionId = currentProduct?.collectionIds?.[0] || collectionId;
 
+  // Variant selection: once every option has a choice, find the matching variant
+  const optionCount = currentProduct?.productOptions?.length || 0;
+  const allOptionsSelected = optionCount > 0 && Object.keys(selectedOptions).length === optionCount;
+  const selectedVariant = currentProduct?.manageVariants && allOptionsSelected
+    ? currentProduct?.variants?.find((variant) =>
+        Object.entries(selectedOptions).every(
+          ([optionName, choice]) => variant.choices?.[optionName] === choice
+        )
+      )
+    : undefined;
+
   // Fetch similar products based on the product's own category
   const { data: similarProducts = [] } = useQuery({
     queryKey: ['similarProducts', productCollectionId, currentProduct?._id],
@@ -152,8 +164,12 @@ export const ProductModal = ({
       // First, check current inventory before adding to cart
       try {
         const freshProduct = await wixCient.products.getProduct(currentProduct._id);
-        const currentStock = freshProduct?.stock?.quantity;
-        const isInStock = freshProduct?.stock?.inStock !== false;
+        // Prefer the selected variant's stock when the product manages variants
+        const freshVariant = selectedVariant
+          ? freshProduct?.variants?.find((variant) => variant._id === selectedVariant._id)
+          : undefined;
+        const currentStock = freshVariant?.stock?.quantity ?? freshProduct?.stock?.quantity;
+        const isInStock = (freshVariant?.stock?.inStock ?? freshProduct?.stock?.inStock) !== false;
         
         // Validate inventory before proceeding
         if (!isInStock || (currentStock !== undefined && currentStock < quantity)) {
@@ -171,9 +187,11 @@ export const ProductModal = ({
           catalogReference: {
             appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e',
             catalogItemId: currentProduct._id,
-            options: Object.keys(selectedOptions).length > 0 
-              ? { options: selectedOptions } 
-              : undefined,
+            options: currentProduct.manageVariants && selectedVariant
+              ? { variantId: selectedVariant._id }
+              : Object.keys(selectedOptions).length > 0
+                ? { options: selectedOptions }
+                : undefined,
           },
         },
       ];
@@ -335,28 +353,67 @@ export const ProductModal = ({
     }
   };
 
-  const getPrice = () => {
-    const priceAmount = Number.parseFloat(currentProduct?.priceData?.price) || 0;
-    return priceAmount * quantity;
-  };
-
   const formatPrice = (price) => {
     return `$${price.toFixed(2)}`;
+  };
+
+  const handleShare = async () => {
+    try {
+      const siteUrl = 'https://www.graftonliquor.co.nz'.replace(/\/$/, '');
+      const productUrl = currentProduct?.slug
+        ? `${siteUrl}/product-page/${currentProduct.slug}`
+        : siteUrl;
+      await Share.share({
+        message: `Check out ${currentProduct.name} at Grafton Liquor\n${productUrl}`,
+      });
+    } catch (error) {
+      // User dismissed the share sheet or sharing is unavailable
+    }
   };
 
   if (!visible) return null;
   if (!currentProduct) return null;
 
-  const price = getPrice();
-  const unitPrice = Number.parseFloat(currentProduct?.priceData?.price) || 0;
-  
-  // Get stock information
-  const stockQuantity = currentProduct?.stock?.quantity;
-  const inStock = currentProduct?.stock?.inStock !== false;
-  const trackInventory = currentProduct?.stock?.trackQuantity !== false;
+  // Pricing: use the selected variant's price data when available, and
+  // prefer the discounted (sale) price over the regular price
+  const priceData =
+    selectedVariant?.variant?.convertedPriceData ||
+    selectedVariant?.variant?.priceData ||
+    currentProduct?.convertedPriceData ||
+    currentProduct?.priceData;
+  const unitPrice = Number.parseFloat(priceData?.discountedPrice ?? priceData?.price) || 0;
+  const price = unitPrice * quantity;
+  const displayPrice =
+    priceData?.formatted?.discountedPrice ||
+    priceData?.formatted?.price ||
+    formatPrice(unitPrice);
+  const regularPrice = Number.parseFloat(priceData?.price) || 0;
+  const compareAtPrice =
+    priceData?.discountedPrice != null && unitPrice < regularPrice
+      ? priceData?.formatted?.price || formatPrice(regularPrice)
+      : null;
+
+  // Get stock information (variant stock takes precedence)
+  const stockInfo = selectedVariant?.stock || currentProduct?.stock;
+  const stockQuantity = stockInfo?.quantity;
+  const inStock = stockInfo?.inStock !== false;
+  const trackInventory = stockInfo?.trackQuantity !== false;
   const isOutOfStock = stockQuantity === 0 || (trackInventory && !inStock);
   const isLowStock = stockQuantity !== undefined && stockQuantity <= 2 && stockQuantity > 0;
   const description = currentProduct?.description?.replace(/<[^>]*>/g, '')?.trim();
+
+  // Require every product option to be chosen before adding to cart
+  const handleAddToCartPress = () => {
+    if (optionCount > 0 && !allOptionsSelected) {
+      const missingOptions = currentProduct.productOptions
+        .filter((option) => !selectedOptions[option.name])
+        .map((option) => option.name)
+        .join(', ');
+      Alert.alert('Select Options', `Please select: ${missingOptions}`);
+      return;
+    }
+    addToCartMutation.mutate();
+  };
 
   return (
     <Modal
@@ -376,6 +433,14 @@ export const ProductModal = ({
         <View style={styles.modalContainer}>
           {/* Header Buttons */}
           <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.favoriteButton}
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel="Share product"
+            >
+              <Ionicons name="share-outline" size={22} color={theme.colors.text} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.favoriteButton} onPress={handleToggleFavorite}>
               <Ionicons 
                 name={isProductFavorite ? "heart" : "heart-outline"} 
@@ -412,9 +477,12 @@ export const ProductModal = ({
                 <Text style={styles.productName} numberOfLines={2}>
                   {currentProduct.name}
                 </Text>
-                <Text style={styles.productPrice}>
-                  {currentProduct.priceData?.formatted?.price || formatPrice(unitPrice)}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={styles.productPrice}>{displayPrice}</Text>
+                  {compareAtPrice && (
+                    <Text style={styles.compareAtPrice}>{compareAtPrice}</Text>
+                  )}
+                </View>
 
                 {/* Afterpay installment */}
                 {unitPrice > 0 && (
@@ -632,7 +700,7 @@ export const ProductModal = ({
                   styles.addToCartButton,
                   addToCartMutation.isPending && styles.addToCartButtonLoading
                 ]}
-                onPress={() => addToCartMutation.mutate()}
+                onPress={handleAddToCartPress}
                 disabled={addToCartMutation.isPending}
               >
                 {addToCartMutation.isPending ? (
@@ -824,6 +892,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: theme.colors.accent,
+    marginBottom: 8,
+  },
+  compareAtPrice: {
+    fontSize: 15,
+    color: theme.colors.textMuted,
+    textDecorationLine: 'line-through',
     marginBottom: 8,
   },
   productDescription: {

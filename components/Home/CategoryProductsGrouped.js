@@ -6,6 +6,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { WixMediaImage } from '../../WixMediaImage';
 import { theme } from '../../styles/theme';
 import { wixCient } from '../../authentication/wixClient';
+import { TAB_BAR_CLEARANCE } from '../../constants/layout';
+import { InCartBadge, LowStockBadge } from '../Badges/ProductBadges';
 
 // Horizontal Product Card - matching CategoryProductsSection style
 const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) => {
@@ -65,12 +67,9 @@ const HorizontalProductCard = ({ product, onPress, trendingProductIds = [] }) =>
           </View>
         )}
         {/* Low Stock Badge - Bottom Left */}
-        {showLowStock && (
-          <View style={styles.lowStockBadge}>
-            <View style={styles.lowStockDot} />
-            <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-          </View>
-        )}
+        {showLowStock && <LowStockBadge quantity={stockQuantity} />}
+        {/* In-cart count - Top Right */}
+        <InCartBadge productId={product?._id} />
         {/* Smaller Add Button with muted color */}
         {!isOutOfStock && (
           <TouchableOpacity 
@@ -236,6 +235,7 @@ export const CategoryProductsGrouped = ({
   return (
     <Animated.ScrollView
       style={styles.mainScrollView}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
       showsVerticalScrollIndicator={false}
       onScroll={onScroll}
       scrollEventThrottle={16}

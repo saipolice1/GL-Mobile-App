@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -13,6 +14,9 @@ import { WixMediaImage } from "../../WixMediaImage";
 import { memo, useMemo } from "react";
 import { theme } from "../../styles/theme";
 import { IS_TABLET } from "../../utils/responsive";
+import { SkeletonProductCard, useShimmer } from "../Home/SkeletonProductCard";
+import { TAB_BAR_CLEARANCE } from "../../constants/layout";
+import { InCartBadge, LowStockBadge } from "../Badges/ProductBadges";
 
 const NUM_COLUMNS = IS_TABLET ? 3 : 2;
 
@@ -36,6 +40,8 @@ const ProductCard = ({ item, onPress }) => {
       <View style={styles.container}>
         <Pressable
           style={styles.card}
+          accessibilityRole="button"
+          accessibilityLabel={item.name}
           onPress={() => {
             onPress(item);
           }}
@@ -79,12 +85,9 @@ const ProductCard = ({ item, onPress }) => {
               </View>
             )}
             {/* Low Stock Badge - Bottom Left */}
-            {showLowStock && (
-              <View style={styles.lowStockBadge}>
-                <View style={styles.lowStockDot} />
-                <Text style={styles.lowStockText}>Only {stockQuantity} left</Text>
-              </View>
-            )}
+            {showLowStock && <LowStockBadge quantity={stockQuantity} />}
+            {/* In-Cart Badge - Top Right */}
+            <InCartBadge productId={item?._id} />
           </View>
           <Text style={[styles.title, isOutOfStock && styles.textGrayedOut]} numberOfLines={2}>{item.name}</Text>
           <View style={styles.priceContainer}>
@@ -97,33 +100,89 @@ const ProductCard = ({ item, onPress }) => {
     );
   }, [item, isOutOfStock, showTrending, showLowStock, stockQuantity]);
 };
-export const ProductsGrid = memo(({ data, scrollOffsetY, onPress }) => {
-  return (
-    <FlatList
-      scrollEventThrottle={16}
-      data={data}
-      numColumns={NUM_COLUMNS}
-      keyExtractor={(item, index) => index.toString()}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollOffsetY } } }],
-        {
-          useNativeDriver: false,
-        },
-      )}
-      keyboardShouldPersistTaps="always"
-      showsVerticalScrollIndicator={false}
-      alwaysBounceHorizontal={false}
-      alwaysBounceVertical={false}
-      bounces={false}
-      style={{ backgroundColor: theme.colors.primary }}
-      renderItem={({ item }) => {
-        return <ProductCard item={item} onPress={onPress} />;
-      }}
-    ></FlatList>
-  );
-});
+export const ProductsGrid = memo(
+  ({ data, scrollOffsetY, onPress, onRefresh, refreshing }) => {
+    const { width: screenWidth } = useWindowDimensions();
+    const showSkeletons = Boolean(refreshing);
+    const shimmer = useShimmer(showSkeletons);
+    const skeletonWidth = screenWidth / NUM_COLUMNS - 40;
+    const skeletonData = useMemo(
+      () =>
+        Array.from({ length: NUM_COLUMNS * 4 }, (_, index) => ({
+          _id: `__skeleton_${index}`,
+          __skeleton: true,
+        })),
+      [],
+    );
+
+    return (
+      <FlatList
+        scrollEventThrottle={16}
+        data={showSkeletons ? skeletonData : data}
+        numColumns={NUM_COLUMNS}
+        keyExtractor={(item, index) => item._id || item.id || index.toString()}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollOffsetY } } }],
+          {
+            useNativeDriver: false,
+          },
+        )}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+        alwaysBounceHorizontal={false}
+        alwaysBounceVertical={Boolean(onRefresh)}
+        bounces={Boolean(onRefresh)}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={Boolean(refreshing)}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.text}
+            />
+          ) : undefined
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No products here yet</Text>
+            <Text style={styles.emptyText}>
+              Check back soon or browse another collection.
+            </Text>
+          </View>
+        }
+        style={{ backgroundColor: theme.colors.primary }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
+        renderItem={({ item }) => {
+          if (item.__skeleton) {
+            return (
+              <View style={styles.container}>
+                <SkeletonProductCard cardWidth={skeletonWidth} shimmer={shimmer} />
+              </View>
+            );
+          }
+          return <ProductCard item={item} onPress={onPress} />;
+        }}
+      ></FlatList>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 30,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     padding: 10,
@@ -170,6 +229,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  inCartBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    zIndex: 2,
+  },
+  inCartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   trendingBadge: {
     position: 'absolute',

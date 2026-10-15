@@ -8,6 +8,7 @@ import { wixCient } from '../../authentication/wixClient';
 import { WixMediaImage } from '../../WixMediaImage';
 
 import { CATEGORIES_DATA } from './CategoryBarWithIcons';
+import { LowStockBadge } from '../Badges/ProductBadges';
 
 const { width: INITIAL_WIDTH } = Dimensions.get('window');
 const BANNER_HEIGHT = IS_TABLET ? 240 : 200;
@@ -89,9 +90,7 @@ const ProductBannerItem = ({ product, onPress, bannerWidth }) => {
         {/* Left side - Product info */}
         <View style={styles.productInfo}>
           {showLowStock && (
-            <View style={styles.stockBadge}>
-              <Text style={styles.stockBadgeText}>Only {stockQuantity} left!</Text>
-            </View>
+            <LowStockBadge quantity={stockQuantity} style={styles.stockBadgePlacement} />
           )}
           <Text style={styles.productName} numberOfLines={2}>{product?.name}</Text>
           <View style={styles.priceContainer}>
@@ -440,11 +439,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  stockBadge: {
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+  // Overrides the badge's default absolute (image-overlay) positioning so it
+  // sits inline above the product name.
+  stockBadgePlacement: {
+    position: 'relative',
+    bottom: undefined,
+    left: undefined,
     alignSelf: 'flex-start',
     marginBottom: 8,
   },

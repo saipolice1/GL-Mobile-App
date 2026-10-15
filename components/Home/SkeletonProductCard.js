@@ -32,14 +32,13 @@ export const SkeletonProductCard = ({ cardWidth, shimmer }) => (
   </View>
 );
 
-export const SkeletonGrid = ({ count = 9 }) => {
-  const { width } = useWindowDimensions();
-  const numColumns = IS_TABLET ? 4 : 3;
-  const cardWidth = (width - 16 * (numColumns + 1)) / numColumns;
-
+// Shared shimmer driver. Pass `active = false` to pause the loop (e.g. when
+// the skeleton is hidden) without changing hook order.
+export function useShimmer(active = true) {
   // Fresh animation per mount — avoids native driver "orphan" issue
   const shimmer = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (!active) return undefined;
     const anim = Animated.loop(
       Animated.timing(shimmer, {
         toValue: 1,
@@ -50,7 +49,16 @@ export const SkeletonGrid = ({ count = 9 }) => {
     );
     anim.start();
     return () => anim.stop();
-  }, [shimmer]);
+  }, [shimmer, active]);
+  return shimmer;
+}
+
+export const SkeletonGrid = ({ count = 9 }) => {
+  const { width } = useWindowDimensions();
+  const numColumns = IS_TABLET ? 4 : 3;
+  const cardWidth = (width - 16 * (numColumns + 1)) / numColumns;
+
+  const shimmer = useShimmer();
 
   return (
     <View style={styles.grid}>
