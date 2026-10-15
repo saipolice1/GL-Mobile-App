@@ -12,12 +12,14 @@ import * as React from "react";
 import { useEffect } from "react";
 import "react-native-gesture-handler";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-url-polyfill/auto";
 import { LoginHandler } from "./authentication/LoginHandler";
 import { MemberHandler } from "./authentication/MemberHandler";
 import { WixSessionProvider } from "./authentication/session";
 import { initializeAuthSession } from "./authentication/wixSystemLogin";
 import { TabBar } from "./components/Tabs/Tabs";
+import { AppErrorBoundary } from "./components/ErrorBoundary/AppErrorBoundary";
 import { AgeVerification } from "./components/AgeVerification/AgeVerification";
 import { AppIntroScreen } from "./components/AppIntro/AppIntroScreen";
 import { tabs } from "./data/tabs/data";
@@ -25,6 +27,8 @@ import { theme as appTheme } from "./styles/theme";
 import { NotificationProvider } from "./context/NotificationContext";
 import { NotificationPermissionBanner } from "./components/Notifications/NotificationPermissionBanner";
 import { trackAppOpen } from "./services/visitorTracking";
+import { scheduleCartReminder, cancelCartReminder } from "./services/notifications";
+import { AppState } from "react-native";
 import Routes from "./routes/routes";
 import { ForceUpdateModal } from "./components/ForceUpdate/ForceUpdateModal";
 import { fetchAppConfig, isVersionBelowMinimum } from "./utils/versionCheck";
@@ -107,6 +111,24 @@ function App() {
     trackAppOpen();
   }, []);
 
+  // Cart reminder — schedule a local notification when the app is backgrounded
+  // with items still in the cart, and cancel it when the user comes back.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background') {
+        const cart = queryClient.getQueryData(['currentCart']);
+        const itemCount =
+          cart?.lineItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+        if (itemCount > 0) {
+          scheduleCartReminder(itemCount);
+        }
+      } else if (nextState === 'active') {
+        cancelCartReminder();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   // ── Force-update gate ──────────────────────────────────────────────────────
   const [updateConfig, setUpdateConfig] = React.useState(null);
 
@@ -156,83 +178,87 @@ function App() {
   }, []);
 
   return (
-    <PaperProvider theme={GraftonPaperTheme}>
-      {/* Force-update gate — renders above everything else when active */}
-      <ForceUpdateModal
-        visible={!!updateConfig}
-        iosUrl={updateConfig?.iosUrl}
-        androidUrl={updateConfig?.androidUrl}
-      />
-      <QueryClientProvider client={queryClient}>
-        <NotificationProvider onNotificationTap={handleNotificationTap}>
-          <WixSessionProvider clientId={clientId}>
-            <MemberHandler>
-              <AppIntroScreen>
-              <AgeVerification>
-                <LoginHandler>
-                <NavigationContainer
-                  ref={navigationRef}
-                  theme={GraftonNavigationTheme}
-                  onReady={handleNavigationReady}
-                  linking={{
-                    prefixes: [Linking.createURL("/")],
-                    config: {
-                      screens: {
-                        Store: {
-                          path: "store",
+    <AppErrorBoundary>
+      <SafeAreaProvider>
+        <PaperProvider theme={GraftonPaperTheme}>
+          {/* Force-update gate — renders above everything else when active */}
+          <ForceUpdateModal
+            visible={!!updateConfig}
+            iosUrl={updateConfig?.iosUrl}
+            androidUrl={updateConfig?.androidUrl}
+          />
+          <QueryClientProvider client={queryClient}>
+            <NotificationProvider onNotificationTap={handleNotificationTap}>
+              <WixSessionProvider clientId={clientId}>
+                <MemberHandler>
+                  <AppIntroScreen>
+                  <AgeVerification>
+                    <LoginHandler>
+                    <NavigationContainer
+                      ref={navigationRef}
+                      theme={GraftonNavigationTheme}
+                      onReady={handleNavigationReady}
+                      linking={{
+                        prefixes: [Linking.createURL("/")],
+                        config: {
                           screens: {
-                            CheckoutThankYou: "checkout/thank-you",
-                            Cart: "cart",
-                            Products: "products",
-                            Product: "products/product",
-                            Collections: "collections",
+                            Store: {
+                              path: "store",
+                              screens: {
+                                CheckoutThankYou: "checkout/thank-you",
+                                Cart: "cart",
+                                Products: "products",
+                                Product: "products/product",
+                                Collections: "collections",
+                              },
+                            },
+                            Account: {
+                              screens: {
+                                OrderDetails: "orders/:orderId",
+                              },
+                            },
                           },
                         },
-                        Account: {
-                          screens: {
-                            OrderDetails: "orders/:orderId",
+                      }}
+                    >
+                      <Tab.Navigator
+                        screenOptions={() => ({
+                          headerShown: false,
+                          tabBarLabelStyle: {
+                            fontSize: 11,
                           },
-                        },
-                      },
-                    },
-                  }}
-                >
-                  <Tab.Navigator
-                    screenOptions={() => ({
-                      headerShown: false,
-                      tabBarLabelStyle: {
-                        fontSize: 11,
-                      },
-                      tabBarStyle: {
-                        backgroundColor: appTheme.colors.tabBar,
-                      },
-                      tabBarHideOnKeyboard: true,
-                    })}
-                    initialRouteName={tabs[0].name}
-                    tabBar={(props) => <TabBar {...props} />}
-                  >
-                    {tabs.map((tab) => (
-                      <Tab.Screen
-                        options={{
-                          tabBarIcon: tab.icon,
-                        }}
-                        name={tab.name}
-                        component={tab.component}
-                        navigationKey={tab.name}
-                        key={tab.name}
-                      />
-                    ))}
-                  </Tab.Navigator>
-                </NavigationContainer>
-              </LoginHandler>
-            </AgeVerification>
-              </AppIntroScreen>
-          </MemberHandler>
-          </WixSessionProvider>
-          <NotificationPermissionBanner />
-        </NotificationProvider>
-      </QueryClientProvider>
-    </PaperProvider>
+                          tabBarStyle: {
+                            backgroundColor: appTheme.colors.tabBar,
+                          },
+                          tabBarHideOnKeyboard: true,
+                        })}
+                        initialRouteName={tabs[0].name}
+                        tabBar={(props) => <TabBar {...props} />}
+                      >
+                        {tabs.map((tab) => (
+                          <Tab.Screen
+                            options={{
+                              tabBarIcon: tab.icon,
+                            }}
+                            name={tab.name}
+                            component={tab.component}
+                            navigationKey={tab.name}
+                            key={tab.name}
+                          />
+                        ))}
+                      </Tab.Navigator>
+                    </NavigationContainer>
+                  </LoginHandler>
+                </AgeVerification>
+                  </AppIntroScreen>
+              </MemberHandler>
+              </WixSessionProvider>
+              <NotificationPermissionBanner />
+            </NotificationProvider>
+          </QueryClientProvider>
+        </PaperProvider>
+      </SafeAreaProvider>
+    </AppErrorBoundary>
   );
 }
 

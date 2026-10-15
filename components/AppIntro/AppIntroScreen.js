@@ -1,7 +1,8 @@
+import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Image, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { wixCient } from '../../authentication/wixClient';
 import { AppReadyProvider, useAppReady } from '../../context/AppReadyContext';
 import { cacheProducts, getCachedProducts } from '../../services/productCache';
@@ -59,6 +60,7 @@ const IntroOverlay = ({ children }) => {
   const queryClient = useQueryClient();
   const [overlayVisible, setOverlayVisible] = useState(true);
   const fade = useRef(new Animated.Value(1)).current;
+  const progress = useRef(new Animated.Value(0)).current;
   const fadedOut = useRef(false);
   const minReached = useRef(false);
   const productsReady = useRef(false);
@@ -66,13 +68,20 @@ const IntroOverlay = ({ children }) => {
   const doFadeOut = useCallback(() => {
     if (fadedOut.current) return;
     fadedOut.current = true;
-    Animated.timing(fade, {
-      toValue: 0,
-      duration: FADE_OUT_MS,
-      useNativeDriver: true,
+    // Complete the progress bar quickly, then fade the overlay out
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
     }).start(() => {
-      markIntroComplete();
-      setOverlayVisible(false);
+      Animated.timing(fade, {
+        toValue: 0,
+        duration: FADE_OUT_MS,
+        useNativeDriver: true,
+      }).start(() => {
+        markIntroComplete();
+        setOverlayVisible(false);
+      });
     });
   }, []);
 
@@ -85,6 +94,24 @@ const IntroOverlay = ({ children }) => {
 
     // Capture when the screen was first painted (survives re-runs via _paintedAt guard)
     if (!_paintedAt) _paintedAt = Date.now();
+
+    // ── Progress bar ──────────────────────────────────────────────────────────
+    // Moves quickly to 60%, then creeps towards 90% while products load.
+    // doFadeOut() completes it to 100% just before the overlay fades.
+    Animated.sequence([
+      Animated.timing(progress, {
+        toValue: 0.6,
+        duration: 1200,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }),
+      Animated.timing(progress, {
+        toValue: 0.9,
+        duration: 5800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]).start();
 
     // ── Min timer ─────────────────────────────────────────────────────────────
     // Guarantees logo is visible for MIN_SHOW_MS from the moment it first painted.
@@ -127,7 +154,24 @@ const IntroOverlay = ({ children }) => {
             source={require('../../assets/icon.png')}
             style={styles.logo}
             resizeMode="contain"
+            fadeDuration={0}
+            onError={() => {
+              Sentry.captureMessage('AppIntro: logo image failed to load', { level: 'warning' });
+            }}
           />
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
+          </View>
         </Animated.View>
       )}
     </View>
@@ -149,5 +193,18 @@ const styles = StyleSheet.create({
   logo: {
     width: 180,
     height: 180,
+  },
+  progressTrack: {
+    width: 160,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#EEEEEE',
+    marginTop: 28,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: '#000000',
   },
 });

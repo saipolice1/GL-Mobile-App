@@ -81,6 +81,8 @@ export const AgeVerification = ({ children }) => {
             <Pressable
               style={styles.verifyButton}
               onPress={handleVerify}
+              accessibilityRole="button"
+              accessibilityLabel="I am 18 or older"
             >
               <Text style={styles.verifyButtonText}>
                 I am 18 or older
@@ -90,6 +92,8 @@ export const AgeVerification = ({ children }) => {
             <Pressable
               style={styles.exitButton}
               onPress={handleExit}
+              accessibilityRole="button"
+              accessibilityLabel="I am under 18"
             >
               <Text style={styles.exitButtonText}>
                 I am under 18

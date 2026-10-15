@@ -15,6 +15,7 @@ import {
   StyleSheet,
   Platform,
   Linking,
+  Alert,
   Image,
   SafeAreaView,
 } from 'react-native';
@@ -37,7 +38,14 @@ export function ForceUpdateModal({ visible, iosUrl, androidUrl }) {
         Platform.OS === 'ios'
           ? 'https://apps.apple.com'
           : 'https://play.google.com/store';
-      Linking.openURL(fallback);
+      Linking.openURL(fallback).catch(() => {
+        // Neither the listing nor the store root could be opened
+        const message =
+          Platform.OS === 'ios'
+            ? "Please open the App Store and search for 'Grafton Liquor' to update."
+            : "Please open Google Play and search for 'Grafton Liquor' to update.";
+        Alert.alert('Could not open the store', message);
+      });
     });
   };
 
