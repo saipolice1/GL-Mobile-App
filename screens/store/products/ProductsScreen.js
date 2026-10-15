@@ -42,15 +42,6 @@ export function ProductsScreen({ navigation, route }) {
     },
   });
 
-  if (productsResponse.isLoading) {
-    return <LoadingIndicator />;
-  }
-
-  if (productsResponse.isError) {
-    return <ErrorView message={productsResponse.error.message} />;
-  }
-  const items = productsResponse.data;
-
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -76,6 +67,21 @@ export function ProductsScreen({ navigation, route }) {
 
   const scrollOffsetY = useRef(animationState.animation).current;
 
+  // Early returns come after all hooks so the hook order stays stable
+  if (productsResponse.isLoading) {
+    return <LoadingIndicator />;
+  }
+
+  if (productsResponse.isError) {
+    return (
+      <ErrorView
+        message={productsResponse.error.message}
+        onRetry={productsResponse.refetch}
+      />
+    );
+  }
+  const items = productsResponse.data;
+
   return (
     <>
       <SafeAreaView style={styles.safeView} />
@@ -98,6 +104,8 @@ export function ProductsScreen({ navigation, route }) {
           onPress={productPressHandler}
           navigation={navigation}
           scrollOffsetY={scrollOffsetY}
+          onRefresh={productsResponse.refetch}
+          refreshing={productsResponse.isRefetching}
         />
 
         {/* Product Modal */}

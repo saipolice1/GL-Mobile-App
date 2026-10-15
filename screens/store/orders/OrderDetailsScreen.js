@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { formatOrderDate } from '../../../utils/formatOrderDate';
+import { TAB_BAR_CLEARANCE } from '../../../constants/layout';
 import { wixCient } from '../../../authentication/wixClient';
 import { theme } from '../../../styles/theme';
 import Routes from '../../../routes/routes';
@@ -260,6 +261,7 @@ export function OrderDetailsScreen({ navigation, route }) {
   const fulfillmentStatus = order.fulfillmentStatus || 'NOT_FULFILLED';
   const paymentInfo = PAYMENT_STATUS_MAP[order.paymentStatus] || { label: order.paymentStatus, color: theme.colors.textMuted };
   const timelineStep = fulfillmentToStep(fulfillmentStatus);
+  const placedDate = formatOrderDate(order.dateCreated, 'MMM dd, yyyy • h:mm a');
 
   const shippingAddress = order.shippingInfo?.shipmentDetails?.address || order.shippingInfo?.logistics?.shippingDestination?.address;
   const trackingNumber = order.shippingInfo?.shipmentDetails?.trackingNumber;
@@ -282,7 +284,7 @@ export function OrderDetailsScreen({ navigation, route }) {
         <View style={styles.backBtn} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}>
 
         {/* Status + Date */}
         <SectionCard>
@@ -292,9 +294,9 @@ export function OrderDetailsScreen({ navigation, route }) {
               <Text style={{ color: paymentInfo.color }}>● </Text>{paymentInfo.label}
             </Text>
           </View>
-          <Text style={styles.dateText}>
-            Placed {format(new Date(order.dateCreated), 'MMM dd, yyyy • h:mm a')}
-          </Text>
+          {placedDate ? (
+            <Text style={styles.dateText}>Placed {placedDate}</Text>
+          ) : null}
         </SectionCard>
 
         {/* Delivery Timeline */}

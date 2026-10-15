@@ -24,7 +24,12 @@ export const CollectionsScreen = ({ navigation }) => {
   }
 
   if (collectionsResponse.isError) {
-    return <ErrorView message={collectionsResponse.error.message} />;
+    return (
+      <ErrorView
+        message={collectionsResponse.error.message}
+        onRetry={collectionsResponse.refetch}
+      />
+    );
   }
 
   const collectionPressHandler = (items) => {

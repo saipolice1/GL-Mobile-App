@@ -1,10 +1,11 @@
 import * as React from "react";
 import { useRef, useState, useEffect } from "react";
-import { Platform, Keyboard, View } from "react-native";
+import { Platform, Keyboard, View, Text, TouchableOpacity } from "react-native";
 import { WebView } from "react-native-webview";
 import { SimpleContainer } from "../../../components/Container/SimpleContainer";
 import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIndicator";
 import { styles } from "../../../styles/store/checkout/checkout-screen/styles";
+import { theme } from "../../../styles/theme";
 import Routes from "../../../routes/routes";
 
 export function CheckoutScreen({ navigation, route }) {
@@ -12,6 +13,7 @@ export function CheckoutScreen({ navigation, route }) {
 
   // All hooks must be declared before any early return
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const webviewRef = useRef(null);
 
   const goBack = () => {
@@ -23,10 +25,13 @@ export function CheckoutScreen({ navigation, route }) {
     }
   };
 
-  if (!redirectSession) {
-    navigation.navigate(Routes.Cart);
-    return null;
-  }
+  // Missing checkout session: send the user back to the native cart.
+  // Navigating inside an effect (not during render) keeps hook order stable.
+  useEffect(() => {
+    if (!redirectSession) {
+      navigation.navigate(Routes.Cart);
+    }
+  }, [redirectSession, navigation]);
 
   // Keyboard show/hide: inject scroll nudge (no container resize!)
   useEffect(() => {
@@ -68,6 +73,10 @@ export function CheckoutScreen({ navigation, route }) {
       showSub?.remove();
     };
   }, []);
+
+  if (!redirectSession) {
+    return null;
+  }
 
   // Always use mobile content mode
   const contentMode = "mobile";
@@ -174,7 +183,12 @@ true;
         ref={webviewRef}
         contentMode={contentMode}
         source={{ uri: redirectSession?.fullUrl }}
-        onLoadEnd={() => setLoading(false)}          onShouldStartLoadWithRequest={(request) => {
+        onLoadEnd={() => setLoading(false)}
+        onError={() => {
+          setLoading(false);
+          setLoadError(true);
+        }}
+        onShouldStartLoadWithRequest={(request) => {
             const url = request.url || '';
 
             // Intercept Wix cart URL — navigate back to native cart instead
@@ -198,7 +212,8 @@ true;
             }
 
             return true;
-          }}        injectedJavaScriptBeforeContentLoaded={viewportScript}
+          }}
+        injectedJavaScriptBeforeContentLoaded={viewportScript}
         injectedJavaScript={postLoadScript}
         scalesPageToFit={Platform.OS !== 'ios'}
         bounces={false}
@@ -227,7 +242,80 @@ true;
       styles={{ backgroundColor: "white" }}
     >
       {loading && <LoadingIndicator />}
-      {loadWebView()}
+      {loadError ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            backgroundColor: "#fff",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: theme.colors.text,
+              marginBottom: 8,
+            }}
+          >
+            Connection lost
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: theme.colors.textMuted,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            We couldn't load the checkout page. Your cart is safe — check your
+            connection and try again.
+          </Text>
+          <Text
+            style={{
+              fontSize: 12,
+              color: theme.colors.textMuted,
+              textAlign: "center",
+              marginBottom: 24,
+            }}
+          >
+            If you already completed payment, check Profile → My Orders before
+            paying again.
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              setLoadError(false);
+              setLoading(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading checkout"
+            style={{
+              backgroundColor: theme.colors.accent,
+              borderRadius: 8,
+              paddingVertical: 12,
+              paddingHorizontal: 32,
+            }}
+          >
+            <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "600" }}>
+              Try Again
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={goBack}
+            accessibilityRole="button"
+            accessibilityLabel="Back to cart"
+            style={{ marginTop: 16, paddingVertical: 8, paddingHorizontal: 16 }}
+          >
+            <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+              Back to Cart
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        loadWebView()
+      )}
     </SimpleContainer>
   );
 }

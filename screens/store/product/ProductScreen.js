@@ -72,6 +72,78 @@ const accordionStyles = RNStyleSheet.create({
   },
 });
 
+// Out-of-stock message with a "notify me when back in stock" button
+function OutOfStockNotify({ onPress, subscribed, subscribing }) {
+  const textColor = subscribed
+    ? appTheme.colors.notifySubscribedText
+    : appTheme.colors.notifyPendingText;
+  const borderColor = subscribed
+    ? appTheme.colors.notifySubscribedBorder
+    : appTheme.colors.notifyPendingBorder;
+
+  return (
+    <View>
+      <RNText style={{ color: appTheme.colors.stockOut, marginBottom: 12 }}>Out of Stock</RNText>
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={subscribed || subscribing}
+        accessibilityRole="button"
+        accessibilityLabel={
+          subscribed
+            ? "You'll be notified when back in stock"
+            : "Notify me when back in stock"
+        }
+        accessibilityState={{
+          disabled: Boolean(subscribed || subscribing),
+          busy: Boolean(subscribing),
+        }}
+        style={{
+          backgroundColor: subscribed
+            ? appTheme.colors.notifySubscribedBg
+            : appTheme.colors.notifyPendingBg,
+          borderColor,
+          borderWidth: 2,
+          borderRadius: 8,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          shadowColor: borderColor,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.15,
+          shadowRadius: 4,
+          elevation: 3,
+        }}
+        activeOpacity={0.8}
+      >
+        {subscribing ? (
+          <ActivityIndicator color={appTheme.colors.notifyPendingText} size="small" />
+        ) : (
+          <>
+            <Ionicons
+              name={subscribed ? "checkmark-circle" : "notifications-outline"}
+              size={20}
+              color={textColor}
+            />
+            <RNText style={{
+              color: textColor,
+              fontSize: 15,
+              fontWeight: '700',
+              letterSpacing: 0.3,
+            }}>
+              {subscribed
+                ? "You'll be notified"
+                : "Notify me when back in stock"}
+            </RNText>
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export function ProductScreen({ route, navigation }) {
   const { product, collectionName } = route.params;
   const { width } = useWindowDimensions();
@@ -382,109 +454,21 @@ export function ProductScreen({ route, navigation }) {
           <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
             <View style={styles.flexJustifyStart}>
               {isProductOutOfStock ? (
-                <View>
-                  <RNText style={{ color: "#B22D1D", marginBottom: 12 }}>Out of Stock</RNText>
-                  <TouchableOpacity
-                    onPress={handleBackInStockSubscribe}
-                    disabled={backInStockSubscribed || subscribing}
-                    style={{
-                      backgroundColor: backInStockSubscribed
-                        ? '#E8F5E9'
-                        : '#FFF8E1',
-                      borderColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
-                      borderWidth: 2,
-                      borderRadius: 8,
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 10,
-                      shadowColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 4,
-                      elevation: 3,
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    {subscribing ? (
-                      <ActivityIndicator color="#E65100" size="small" />
-                    ) : (
-                      <>
-                        <Ionicons
-                          name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"}
-                          size={20}
-                          color={backInStockSubscribed ? '#2E7D32' : '#E65100'}
-                        />
-                        <RNText style={{
-                          color: backInStockSubscribed ? '#2E7D32' : '#E65100',
-                          fontSize: 15,
-                          fontWeight: '700',
-                          letterSpacing: 0.3,
-                        }}>
-                          {backInStockSubscribed
-                            ? "You'll be notified"
-                            : "Notify me when back in stock"}
-                        </RNText>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                <OutOfStockNotify
+                  onPress={handleBackInStockSubscribe}
+                  subscribed={backInStockSubscribed}
+                  subscribing={subscribing}
+                />
               ) : !allProductOptionsSelected ? (
-                <RNText style={{ color: "#B22D1D" }}>
+                <RNText style={{ color: appTheme.colors.stockOut }}>
                   Please select all product options
                 </RNText>
               ) : !inStock ? (
-                <View>
-                  <RNText style={{ color: "#B22D1D", marginBottom: 12 }}>Out of Stock</RNText>
-                  <TouchableOpacity
-                    onPress={handleBackInStockSubscribe}
-                    disabled={backInStockSubscribed || subscribing}
-                    style={{
-                      backgroundColor: backInStockSubscribed
-                        ? '#E8F5E9'
-                        : '#FFF8E1',
-                      borderColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
-                      borderWidth: 2,
-                      borderRadius: 8,
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 10,
-                      shadowColor: backInStockSubscribed ? '#4CAF50' : '#FFA000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 4,
-                      elevation: 3,
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    {subscribing ? (
-                      <ActivityIndicator color="#E65100" size="small" />
-                    ) : (
-                      <>
-                        <Ionicons
-                          name={backInStockSubscribed ? "checkmark-circle" : "notifications-outline"}
-                          size={20}
-                          color={backInStockSubscribed ? '#2E7D32' : '#E65100'}
-                        />
-                        <RNText style={{
-                          color: backInStockSubscribed ? '#2E7D32' : '#E65100',
-                          fontSize: 15,
-                          fontWeight: '700',
-                          letterSpacing: 0.3,
-                        }}>
-                          {backInStockSubscribed
-                            ? "You'll be notified"
-                            : "Notify me when back in stock"}
-                        </RNText>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                <OutOfStockNotify
+                  onPress={handleBackInStockSubscribe}
+                  subscribed={backInStockSubscribed}
+                  subscribing={subscribing}
+                />
               ) : (
                 <>
                   <RNText style={{ fontSize: 13, marginBottom: 8, color: appTheme.colors.text }}>
@@ -509,6 +493,12 @@ export function ProductScreen({ route, navigation }) {
                 addToCurrentCartMutation.mutateAsync(requestedQuantity)
               }
               disabled={!canBeAddedToCart || addToCurrentCartMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Add to cart"
+              accessibilityState={{
+                disabled: !canBeAddedToCart,
+                busy: addToCurrentCartMutation.isPending,
+              }}
               style={[
                 styles.flexGrow1Button,
                 {
@@ -535,6 +525,12 @@ export function ProductScreen({ route, navigation }) {
             <TouchableOpacity
               onPress={() => buyNowMutation.mutateAsync(requestedQuantity)}
               disabled={!canBeAddedToCart || buyNowMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Buy now"
+              accessibilityState={{
+                disabled: !canBeAddedToCart,
+                busy: buyNowMutation.isPending,
+              }}
               style={[
                 styles.flexGrow1Button,
                 {

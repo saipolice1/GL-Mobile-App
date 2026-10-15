@@ -22,6 +22,8 @@ import {
   Alert,
   Animated,
   Easing,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -35,6 +37,11 @@ import { ProductModal } from "../../../components/ProductModal/ProductModal";
 import { theme } from "../../../styles/theme";
 import { IS_TABLET, rs } from "../../../utils/responsive";
 import { SAME_DAY_MIN, FREE_DELIVERY_MIN } from "../../../constants/delivery";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useMemberHandler } from "../../../authentication/MemberHandler";
+import { buildCheckoutPrefill } from "../../../utils/checkoutPrefill";
+import { TAB_BAR_CLEARANCE } from "../../../constants/layout";
+import { isSessionExpiredError, friendlyCheckoutError } from "../../../utils/checkoutErrors";
 
 const Stack = createNativeStackNavigator();
 
@@ -86,10 +93,17 @@ const AnimatedCheckoutButton = ({ onPress, disabled, loading, subtotal }) => {
       onPressOut={handlePressOut}
       disabled={disabled}
       activeOpacity={1}
+      accessibilityRole="button"
+      accessibilityLabel={loading ? 'Processing checkout' : 'Proceed to checkout'}
+      accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(loading) }}
     >
       <Animated.View style={{ transform: [{ scale: Animated.multiply(scaleAnim, pulseAnim) }] }}>
         <LinearGradient
-          colors={disabled ? ['#9CA3AF', '#6B7280'] : ['#1F2937', '#374151']}
+          colors={
+            disabled
+              ? [theme.colors.textMuted, theme.colors.textMuted]
+              : [theme.colors.checkoutButton, theme.colors.checkoutButton]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={cartStyles.checkoutButton}
@@ -384,6 +398,9 @@ const CartItemCard = ({ item, currency, onUpdateQuantity, onRemove, isUpdating, 
           <View style={cartStyles.quantityControls}>
             <TouchableOpacity 
               style={cartStyles.quantityBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease quantity"
               onPress={() => handleQuantityPress(item.quantity - 1)}
               disabled={isUpdating || item.quantity <= 1}
             >
@@ -392,6 +409,9 @@ const CartItemCard = ({ item, currency, onUpdateQuantity, onRemove, isUpdating, 
             <Text style={cartStyles.quantityText}>{item.quantity}</Text>
             <TouchableOpacity 
               style={cartStyles.quantityBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Increase quantity"
               onPress={() => handleQuantityPress(item.quantity + 1)}
               disabled={isUpdating}
             >
@@ -403,6 +423,9 @@ const CartItemCard = ({ item, currency, onUpdateQuantity, onRemove, isUpdating, 
       </View>
       <TouchableOpacity 
         style={cartStyles.removeBtn}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        accessibilityRole="button"
+        accessibilityLabel="Remove item from cart"
         onPress={onRemove}
       >
         <Ionicons name="trash-outline" size={20} color={theme.colors.textMuted} />
@@ -556,6 +579,7 @@ const SmartDeliveryNote = ({ cartTotal, cartItems = [] }) => {
 function CartView() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
+  const { firstName, lastName, phone, currentMemberId } = useMemberHandler();
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState(null);
   const [productModalVisible, setProductModalVisible] = React.useState(false);
@@ -634,11 +658,10 @@ function CartView() {
       let currentCheckout;
       try {
         currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
-          channelType: currentCart.ChannelType.OTHER_PLATFORM,
+          channelType: currentCart.ChannelType.WEB,
         });
       } catch (err) {
-        const isExpired = String(err?.message ?? err).includes('EXPIRED_SESSION_CANT_BE_USED');
-        if (isExpired) {
+        if (isSessionExpiredError(err)) {
           // Session expired — refresh silently and retry once
           console.log('[Checkout] Session expired, refreshing tokens...');
           try {
@@ -660,7 +683,7 @@ function CartView() {
             }
             wixCient.auth.setTokens(newTokens);
             currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
-              channelType: currentCart.ChannelType.OTHER_PLATFORM,
+              channelType: currentCart.ChannelType.WEB,
             });
           } catch (retryErr) {
             console.error('[Checkout] Retry after session refresh failed:', retryErr?.message);
@@ -676,14 +699,32 @@ function CartView() {
         }
       }
 
-      // Pre-fill New Zealand as the shipping country so checkout doesn't default to US
+      // Pre-fill the member's contact details and saved address (always NZ) so
+      // checkout doesn't default to US. Fall back to just the country if that fails.
+      let savedAddress;
       try {
-        await wixCient.checkout.updateCheckout(currentCheckout.checkoutId, {
-          shippingAddress: {
-            address: { country: 'NZ' },
-          },
-        });
-      } catch (_) {}
+        if (currentMemberId) {
+          try {
+            const raw = await AsyncStorage.getItem(`@saved_addresses_${currentMemberId}`);
+            savedAddress = raw ? JSON.parse(raw)[0] : undefined;
+          } catch (_) {}
+        }
+        await wixCient.checkout.updateCheckout(
+          currentCheckout.checkoutId,
+          buildCheckoutPrefill({
+            savedAddress,
+            contact: { firstName, lastName, phone },
+          })
+        );
+      } catch (_) {
+        try {
+          await wixCient.checkout.updateCheckout(currentCheckout.checkoutId, {
+            shippingAddress: {
+              address: { country: 'NZ' },
+            },
+          });
+        } catch (_) {}
+      }
 
       let redirectSession;
       try {
@@ -712,7 +753,7 @@ function CartView() {
     },
     onError: (error) => {
       setCheckoutLoading(false);
-      if (error?.message === '__SESSION_EXPIRED__') {
+      if (error?.message === '__SESSION_EXPIRED__' || isSessionExpiredError(error)) {
         Alert.alert(
           'Session Expired',
           'Your login session has expired. Please log in again to continue.',
@@ -723,12 +764,8 @@ function CartView() {
         );
         return;
       }
-      const detail = error?.message || error?.response?.data?.message;
-      console.error('[Checkout] onError:', detail, error);
-      Alert.alert(
-        'Checkout Error',
-        detail ? `Failed to proceed to checkout:\n${detail}` : 'Failed to proceed to checkout. Please try again.'
-      );
+      console.error('[Checkout] onError:', error?.message, error);
+      Alert.alert('Checkout Error', friendlyCheckoutError(error));
     },
   });
 
@@ -776,119 +813,125 @@ function CartView() {
         <Text style={cartStyles.headerSubtitle}>{itemCount} item{itemCount !== 1 ? 's' : ''}</Text>
       </View>
 
-      <ScrollView 
-        style={cartStyles.scrollView}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={cartQuery.isFetching}
-            onRefresh={cartQuery.refetch}
-          />
-        }
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Delivery Progress */}
-        <CartDeliveryProgress cartTotal={subtotal} />
-
-        {/* Cart Items */}
-        <View style={cartStyles.itemsContainer}>
-          {cart.lineItems.map((item, index) => (
-            <CartItemCard
-              key={item._id}
-              item={item}
-              index={index}
-              currency={cart.currency}
-              onUpdateQuantity={(quantity) => 
-                updateQuantityMutation.mutate({ itemId: item._id, quantity })
-              }
-              onRemove={() => removeMutation.mutate(item._id)}
-              isUpdating={updateQuantityMutation.isPending}
-              onProductPress={handleProductPress}
+        <ScrollView 
+          style={cartStyles.scrollView}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={cartQuery.isFetching}
+              onRefresh={cartQuery.refetch}
             />
-          ))}
-        </View>
+          }
+        >
+          {/* Delivery Progress */}
+          <CartDeliveryProgress cartTotal={subtotal} />
 
-        {/* Smart Delivery Options Note */}
-        <SmartDeliveryNote cartTotal={subtotal} cartItems={cart.lineItems} />
+          {/* Cart Items */}
+          <View style={cartStyles.itemsContainer}>
+            {cart.lineItems.map((item, index) => (
+              <CartItemCard
+                key={item._id}
+                item={item}
+                index={index}
+                currency={cart.currency}
+                onUpdateQuantity={(quantity) => 
+                  updateQuantityMutation.mutate({ itemId: item._id, quantity })
+                }
+                onRemove={() => removeMutation.mutate(item._id)}
+                isUpdating={updateQuantityMutation.isPending}
+                onProductPress={handleProductPress}
+              />
+            ))}
+          </View>
 
-        {/* Nationwide Shipping Note */}
-        <View style={cartStyles.shippingNote}>
-          <Ionicons name="airplane-outline" size={20} color="#D97706" />
-          <Text style={cartStyles.shippingNoteText}>
-            {'🇳🇿 Nationwide courier delivery available for wines & spirits — including vodka, rum, whiskey, liqueur and gin. Beer & RTDs are available for local delivery only.'}
+          {/* Smart Delivery Options Note */}
+          <SmartDeliveryNote cartTotal={subtotal} cartItems={cart.lineItems} />
+
+          {/* Nationwide Shipping Note */}
+          <View style={cartStyles.shippingNote}>
+            <Ionicons name="airplane-outline" size={20} color="#D97706" />
+            <Text style={cartStyles.shippingNoteText}>
+              {'🇳🇿 Nationwide courier delivery available for wines & spirits — including vodka, rum, whiskey, liqueur and gin. Beer & RTDs are available for local delivery only.'}
+            </Text>
+          </View>
+
+          {/* Delivery Instructions + Gift Message */}
+          <View style={cartStyles.notesSection}>
+            <Text style={cartStyles.notesSectionTitle}>Order Notes (optional)</Text>
+            <View style={cartStyles.noteInputWrapper}>
+              <Ionicons name="bicycle-outline" size={18} color={theme.colors.textMuted} style={{ marginTop: 2 }} />
+              <TextInput
+                style={cartStyles.noteInput}
+                placeholder="Delivery instructions (e.g. leave at door)"
+                placeholderTextColor={theme.colors.textMuted}
+                value={deliveryNote}
+                onChangeText={setDeliveryNote}
+                multiline
+                maxLength={200}
+              />
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Product Modal */}
+        <ProductModal
+          visible={productModalVisible}
+          product={selectedProduct}
+          onClose={() => { setProductModalVisible(false); setSelectedProduct(null); }}
+        />
+
+        {/* Bottom Checkout Section */}
+        <View style={cartStyles.checkoutSection}>
+          <View style={cartStyles.totalRow}>
+            <Text style={cartStyles.totalLabel}>Subtotal</Text>
+            <Text style={cartStyles.totalAmount}>${subtotal.toFixed(2)}</Text>
+          </View>
+        
+          {/* Afterpay installment for cart total */}
+          {subtotal > 0 && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 14,
+              marginTop: -4,
+              backgroundColor: theme.colors.surface,
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            }}>
+              <Text style={{ fontSize: 13, color: theme.colors.textMuted }}>or 4 payments of </Text>
+              <Text style={{ fontSize: 13, color: theme.colors.text, fontWeight: '700' }}>NZ ${(subtotal / 4).toFixed(2)}</Text>
+              <Text style={{ fontSize: 13, color: theme.colors.textMuted }}> with </Text>
+              <Image
+                source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
+                style={{ width: 70, height: 16, resizeMode: 'contain' }}
+              />
+              <TouchableOpacity onPress={() => Linking.openURL('https://www.afterpay.com/en-NZ/how-it-works')}>
+                <Text style={{ fontSize: 12, color: theme.colors.accent, marginLeft: 6, textDecorationLine: 'underline' }}>learn more</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        
+          <AnimatedCheckoutButton
+            onPress={() => checkoutMutation.mutate()}
+            disabled={checkoutLoading}
+            loading={checkoutLoading}
+            subtotal={subtotal}
+          />
+        
+          <Text style={cartStyles.secureText}>
+            <Ionicons name="shield-checkmark" size={12} color={theme.colors.textMuted} /> Secure checkout
           </Text>
         </View>
-
-        {/* Delivery Instructions + Gift Message */}
-        <View style={cartStyles.notesSection}>
-          <Text style={cartStyles.notesSectionTitle}>Order Notes (optional)</Text>
-          <View style={cartStyles.noteInputWrapper}>
-            <Ionicons name="bicycle-outline" size={18} color={theme.colors.textMuted} style={{ marginTop: 2 }} />
-            <TextInput
-              style={cartStyles.noteInput}
-              placeholder="Delivery instructions (e.g. leave at door)"
-              placeholderTextColor={theme.colors.textMuted}
-              value={deliveryNote}
-              onChangeText={setDeliveryNote}
-              multiline
-              maxLength={200}
-            />
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Product Modal */}
-      <ProductModal
-        visible={productModalVisible}
-        product={selectedProduct}
-        onClose={() => { setProductModalVisible(false); setSelectedProduct(null); }}
-      />
-
-      {/* Bottom Checkout Section */}
-      <View style={cartStyles.checkoutSection}>
-        <View style={cartStyles.totalRow}>
-          <Text style={cartStyles.totalLabel}>Subtotal</Text>
-          <Text style={cartStyles.totalAmount}>${subtotal.toFixed(2)}</Text>
-        </View>
-        
-        {/* Afterpay installment for cart total */}
-        {subtotal > 0 && (
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 14,
-            marginTop: -4,
-            backgroundColor: theme.colors.surface,
-            borderRadius: 8,
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-          }}>
-            <Text style={{ fontSize: 13, color: theme.colors.textMuted }}>or 4 payments of </Text>
-            <Text style={{ fontSize: 13, color: theme.colors.text, fontWeight: '700' }}>NZ ${(subtotal / 4).toFixed(2)}</Text>
-            <Text style={{ fontSize: 13, color: theme.colors.textMuted }}> with </Text>
-            <Image
-              source={{ uri: 'https://static.afterpay.com/integration/product-page/logo-afterpay-colour.png' }}
-              style={{ width: 70, height: 16, resizeMode: 'contain' }}
-            />
-            <TouchableOpacity onPress={() => Linking.openURL('https://www.afterpay.com/en-NZ/how-it-works')}>
-              <Text style={{ fontSize: 12, color: theme.colors.accent, marginLeft: 6, textDecorationLine: 'underline' }}>learn more</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        <AnimatedCheckoutButton
-          onPress={() => checkoutMutation.mutate()}
-          disabled={checkoutLoading}
-          loading={checkoutLoading}
-          subtotal={subtotal}
-        />
-        
-        <Text style={cartStyles.secureText}>
-          <Ionicons name="shield-checkmark" size={12} color={theme.colors.textMuted} /> Secure checkout
-        </Text>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -1130,7 +1173,9 @@ const cartStyles = StyleSheet.create({
   checkoutSection: {
     backgroundColor: theme.colors.background,
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    // Keep the checkout button clear of the floating pill tab bar
+    paddingBottom: TAB_BAR_CLEARANCE,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
