@@ -70,6 +70,9 @@ const NOTIFICATION_MESSAGES = {
   },
 };
 
+// Identifier of the currently scheduled cart reminder notification
+let cartReminderId = null;
+
 // Register for push notifications
 export async function registerForPushNotificationsAsync() {
   let token;
@@ -190,20 +193,39 @@ export async function sendPromoNotification(title, body, promoCode) {
 }
 
 // Cart reminder notification
-export async function sendCartReminderNotification(itemCount) {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '🛒 Items waiting in your cart',
-      body: `You have ${itemCount} item${itemCount > 1 ? 's' : ''} in your cart. Complete your order now!`,
-      data: { 
-        type: 'cart_reminder',
+// Only one reminder is kept scheduled at a time: scheduling a new one replaces
+// the previous reminder, and it can be cancelled (e.g. after checkout).
+export async function scheduleCartReminder(itemCount) {
+  try {
+    await cancelCartReminder();
+    cartReminderId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🛒 Items waiting in your cart',
+        body: `You have ${itemCount} item${itemCount > 1 ? 's' : ''} in your cart. Complete your order now!`,
+        data: { 
+          type: 'cart_reminder',
+        },
+        sound: 'default',
       },
-      sound: 'default',
-    },
-    trigger: {
-      seconds: 3600, // 1 hour later
-    },
-  });
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 3600, // 1 hour later
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to schedule cart reminder:', error?.message);
+  }
+}
+
+// Cancel the pending cart reminder, if one is scheduled
+export async function cancelCartReminder() {
+  if (!cartReminderId) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(cartReminderId);
+  } catch {
+    // Already fired or cancelled - nothing to do
+  }
+  cartReminderId = null;
 }
 
 // Register push token with Wix backend for order notifications

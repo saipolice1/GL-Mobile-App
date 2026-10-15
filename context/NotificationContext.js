@@ -14,25 +14,35 @@ const MAX_INBOX = 50;
 const REMINDER_KEY = '@notif_reminder_last_shown';
 const REMINDER_INTERVAL_MS = 48 * 60 * 60 * 1000; // 48 hours
 
-async function saveToInbox(notification) {
+// Save a batch of delivered notifications to the inbox, skipping any that are
+// already stored (matched by notification identifier).
+async function saveManyToInbox(notifications, { read = false } = {}) {
   try {
     const raw = await AsyncStorage.getItem(INBOX_KEY);
     const existing = raw ? JSON.parse(raw) : [];
-    const entry = {
-      id: notification.request.identifier,
-      title: notification.request.content.title,
-      body: notification.request.content.body,
-      data: notification.request.content.data,
-      receivedAt: new Date().toISOString(),
-      read: false,
-    };
-    const updated = [entry, ...existing].slice(0, MAX_INBOX);
+    const existingIds = new Set(existing.map(n => n.id));
+    const entries = (notifications || [])
+      .filter(n => n?.request?.identifier && !existingIds.has(n.request.identifier))
+      .map(n => ({
+        id: n.request.identifier,
+        title: n.request.content.title,
+        body: n.request.content.body,
+        data: n.request.content.data,
+        receivedAt: new Date().toISOString(),
+        read,
+      }));
+    if (entries.length === 0) return existing;
+    const updated = [...entries, ...existing].slice(0, MAX_INBOX);
     await AsyncStorage.setItem(INBOX_KEY, JSON.stringify(updated));
     return updated;
   } catch (e) {
-    console.log('Failed to save notification to inbox:', e);
+    console.log('Failed to save notifications to inbox:', e);
     return [];
   }
+}
+
+async function saveToInbox(notification, options) {
+  return saveManyToInbox([notification], options);
 }
 
 const NotificationContext = createContext(null);
@@ -81,14 +91,28 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
   };
 
   useEffect(() => {
-    // Clear badge when app comes to foreground
+    // Pull in notifications that were delivered while the app was in the
+    // background or killed (they never hit the foreground listener).
+    const sweepDeliveredNotifications = () => {
+      Notifications.getPresentedNotificationsAsync()
+        .then(presented => {
+          if (presented?.length) {
+            saveManyToInbox(presented).then(setInbox);
+          }
+        })
+        .catch(() => {});
+    };
+
+    // Clear badge and sweep delivered notifications when app comes to foreground
     const appStateListener = AppState.addEventListener('change', state => {
       if (state === 'active') {
         Notifications.setBadgeCountAsync(0);
+        sweepDeliveredNotifications();
       }
     });
-    // Also clear immediately on mount
+    // Also clear and sweep immediately on mount
     Notifications.setBadgeCountAsync(0);
+    sweepDeliveredNotifications();
 
     // Register for push notifications
     registerForPushNotificationsAsync().then(async token => {
@@ -119,6 +143,7 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
     responseListener.current = addNotificationResponseReceivedListener(response => {
       console.log('Notification tapped:', response);
       Notifications.setBadgeCountAsync(0);
+      saveToInbox(response.notification, { read: true }).then(setInbox);
       const data = response.notification.request.content.data;
       if (onNotificationTap) {
         onNotificationTap(data);
@@ -130,6 +155,7 @@ export const NotificationProvider = ({ children, onNotificationTap }) => {
       if (response) {
         console.log('Cold-start notification:', response);
         Notifications.setBadgeCountAsync(0);
+        saveToInbox(response.notification, { read: true }).then(setInbox);
         const data = response.notification.request.content.data;
         if (onNotificationTap) {
           onNotificationTap(data);
