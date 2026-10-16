@@ -2,13 +2,13 @@
 
 Keep this file up to date and pushed — Codespace-local notes are lost when a Codespace is deleted.
 
-## ✅ RESTORED (branch `restore/jun-sep-2026`) — pending device check + merge
+## ✅ RESTORED and merged to `main` (2026-10-16)
 
 - Store version: **1.0.18** on both App Store (iOS) and Google Play (Android). Live OTA: **v2026-07-16.2** (`f162fdcd`, published 2 Sep 2026, runtime 1.0.18).
 - Repo HEAD (`1dd82b7`, 2026-04-22) only contains OTAs up to 22 Apr 2026.
 - Source for the 5 Jun → 2 Sep 2026 OTAs (18 updates below) was never pushed and was lost with deleted Codespace "super fishstick" (deleted ~2 Oct 2026).
 - 2026-10-15: all source restored from the decompiled live bundle. Rebuilt app matches live **3411/3411 modules** (identical bytecode modulo jump offsets).
-- **Do NOT publish an OTA from `main` until the restore branch is merged** — `npm run ota` also blocks versions older than live.
+- `main` now contains the live code. Publish OTAs only with `npm run ota -- "message"` (blocks dirty/unpushed/older-than-live).
 
 ### Missing changes (from `eas update:list`, oldest first)
 - [x] 5 Jun — fix: handle SESSION_REVOKED error on checkout redirect session (`d52fd61d`)
@@ -37,14 +37,16 @@ Keep this file up to date and pushed — Codespace-local notes are lost when a C
     decompile with P1sec/hermes-dec `hbc-decompiler`
 - [x] Re-implement each change (44 files), verified by recompiling vs live; pushed to `restore/jun-sep-2026`
 - [x] Bump `constants/otaVersion.js` to match live (`2026-07-16.2`)
-- [ ] Check restored app on a device (`npm run tunnel`) against the store app
-- [ ] Merge `restore/jun-sep-2026` into `main`
+- [x] ~~Check on device~~ — not needed: store app already runs identical code (Expo Go on iOS only supports latest SDK)
+- [x] Merge `restore/jun-sep-2026` into `main`
 
 ## Next store build: v1.0.19
 
 - [x] Restore all missing changes above first
 - [ ] Add `expo-blur` (native module — build only, not OTA) — real glass on the floating pill tab bar
 - [ ] Bump `app.json` version to 1.0.19 (new runtime; versionCode handled by EAS remote autoIncrement)
-- [ ] Test on a development build (not Expo Go)
+- [ ] Test on a development build (not Expo Go) — `expo-dev-client` already added
+  - [ ] Register iPhone: `npx eas-cli device:create` (iOS Stolen Device Protection may add a 1-hour security delay to installing the profile away from home/work)
+  - [ ] `npx eas-cli build --profile development --platform ios`
 - [ ] `eas build --platform all --profile production`
 - [ ] `eas submit` to App Store / Google Play
