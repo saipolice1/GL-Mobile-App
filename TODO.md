@@ -7,7 +7,8 @@ Keep this file up to date and pushed — Codespace-local notes are lost when a C
 - Android app (nz.co.graftonliquor.app, versionCode 21) **suspended** by Google Play: "Tobacco and Alcohol" policy — app sold cigarettes (Wix "Smokes" collection `smokes-1`, 10 products). Suspension = strike on developer account.
 - Apple guideline 1.4.3 has the same rule, so tobacco is removed on **both** platforms. Website still sells them.
 - Fix on branch `hotfix/remove-tobacco` (OTA_VERSION `2026-11-10.1`): central filter in `utils/restrictedProducts.js` wraps the Wix client (products, collections, getProduct), Smokes category removed, cached/favorites/recently-viewed filtered, in-app WebViews block website store pages.
-- [ ] Merge hotfix → `main`, publish OTA (`npm run ota`) so iOS + existing Android installs update
+- [x] Merged to `main`; OTA `v2026-11-10.1` published 2026-11-10 (group `f0f217a7`, runtime 1.0.18, android+ios)
+- [ ] Appeal: "I understand what led to this issue and will fix it" (after OTA) — then, if granted, upload new build
 - [ ] New Android production build (1.0.18, next versionCode) + submit to Play; deactivate versionCode 21 per Google's resubmit steps
 - [ ] Ask Google (appeal / Play Console help) whether the suspended listing can be restored or a new app is required
 - [ ] Merge hotfix into `release/1.0.19` too
