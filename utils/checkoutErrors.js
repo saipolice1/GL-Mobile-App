@@ -3,9 +3,10 @@
  */
 
 /**
- * Returns true when the error indicates the Wix visitor session has expired
- * (e.g. EXPIRED_SESSION_CANT_BE_USED), so the caller can refresh the session
- * and retry instead of showing an error.
+ * Returns true when the error indicates the Wix session has expired or is no
+ * longer active (e.g. EXPIRED_SESSION_CANT_BE_USED, or
+ * SESSION_BY_ID_NOT_FOUND_OR_NOT_ACTIVE after the session was revoked), so the
+ * caller can refresh the session and retry instead of showing an error.
  */
 export function isSessionExpiredError(err) {
   let text = String(err?.message ?? err ?? '');
@@ -14,9 +15,13 @@ export function isSessionExpiredError(err) {
   } catch {
     // details may not be serialisable; fall back to the message only
   }
+  const lower = text.toLowerCase();
   return (
     text.includes('EXPIRED_SESSION_CANT_BE_USED') ||
-    text.toLowerCase().includes('session expired')
+    text.includes('SESSION_BY_ID_NOT_FOUND_OR_NOT_ACTIVE') ||
+    text.includes('SESSION_REVOKED') ||
+    lower.includes('session expired') ||
+    lower.includes('not found, or not active')
   );
 }
 

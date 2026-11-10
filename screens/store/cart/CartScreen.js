@@ -45,6 +45,35 @@ import { isSessionExpiredError, friendlyCheckoutError } from "../../../utils/che
 
 const Stack = createNativeStackNavigator();
 
+// Refresh the Wix session after it expired or was revoked, and persist the new
+// tokens so the next launch doesn't restore the dead session.
+// Throws '__SESSION_EXPIRED__' when a member's refresh token is no longer valid.
+async function refreshWixSession() {
+  const currentTokens = wixCient.auth.getTokens();
+  let newTokens;
+  if (currentTokens?.refreshToken) {
+    try {
+      newTokens = await wixCient.auth.renewToken(currentTokens.refreshToken);
+    } catch (renewErr) {
+      // Refresh token itself is expired (>2 weeks inactive) or revoked — clear stored session
+      console.log('[Checkout] renewToken failed, session fully expired:', renewErr?.message);
+      Sentry.captureException(renewErr, { tags: { step: 'renewToken' } });
+      try { await SecureStore.deleteItemAsync('wixSession'); } catch (_) {}
+      throw new Error('__SESSION_EXPIRED__');
+    }
+  } else {
+    newTokens = await wixCient.auth.generateVisitorTokens();
+  }
+  wixCient.auth.setTokens(newTokens);
+  try {
+    await SecureStore.setItemAsync(
+      'wixSession',
+      JSON.stringify({ tokens: newTokens, clientId: process.env.EXPO_PUBLIC_WIX_CLIENT_ID || '' })
+    );
+  } catch (_) {}
+  return newTokens;
+}
+
 // Animated Checkout Button with gradient and pulse
 const AnimatedCheckoutButton = ({ onPress, disabled, loading, subtotal }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -665,23 +694,7 @@ function CartView() {
           // Session expired — refresh silently and retry once
           console.log('[Checkout] Session expired, refreshing tokens...');
           try {
-            const currentTokens = wixCient.auth.getTokens();
-            let newTokens;
-            if (currentTokens?.refreshToken) {
-              try {
-                newTokens = await wixCient.auth.renewToken(currentTokens.refreshToken);
-              } catch (renewErr) {
-                // Refresh token itself is expired (>2 weeks inactive) — clear stored session
-                console.log('[Checkout] renewToken failed, session fully expired:', renewErr?.message);
-                Sentry.captureException(renewErr, { tags: { step: 'renewToken' } });
-                try { await SecureStore.deleteItemAsync('wixSession'); } catch (_) {}
-                const sessionExpiredErr = new Error('__SESSION_EXPIRED__');
-                throw sessionExpiredErr;
-              }
-            } else {
-              newTokens = await wixCient.auth.generateVisitorTokens();
-            }
-            wixCient.auth.setTokens(newTokens);
+            await refreshWixSession();
             currentCheckout = await wixCient.currentCart.createCheckoutFromCurrentCart({
               channelType: currentCart.ChannelType.WEB,
             });
@@ -726,18 +739,35 @@ function CartView() {
         } catch (_) {}
       }
 
-      let redirectSession;
-      try {
-        ({ redirectSession } = await wixCient.redirects.createRedirectSession({
+      const createRedirect = () =>
+        wixCient.redirects.createRedirectSession({
           ecomCheckout: { checkoutId: currentCheckout.checkoutId },
           callbacks: {
             thankYouPageUrl: "https://www.graftonliquor.co.nz/store/checkout/thank-you",
           },
-        }));
+        });
+
+      let redirectSession;
+      try {
+        ({ redirectSession } = await createRedirect());
       } catch (err) {
-        console.error('[Checkout] createRedirectSession failed:', err?.message, err?.response?.data ?? err);
-        Sentry.captureException(err, { tags: { step: 'createRedirectSession', checkoutId: currentCheckout.checkoutId } });
-        throw err;
+        if (!isSessionExpiredError(err)) {
+          console.error('[Checkout] createRedirectSession failed:', err?.message, err?.response?.data ?? err);
+          Sentry.captureException(err, { tags: { step: 'createRedirectSession', checkoutId: currentCheckout.checkoutId } });
+          throw err;
+        }
+        // Session no longer active (e.g. revoked) — refresh silently and retry once
+        console.log('[Checkout] Session inactive at redirect, refreshing tokens...');
+        try {
+          await refreshWixSession();
+          ({ redirectSession } = await createRedirect());
+        } catch (retryErr) {
+          console.error('[Checkout] Redirect retry after session refresh failed:', retryErr?.message);
+          if (retryErr?.message !== '__SESSION_EXPIRED__') {
+            Sentry.captureException(retryErr, { tags: { step: 'createRedirectSession_retry', checkoutId: currentCheckout.checkoutId } });
+          }
+          throw retryErr;
+        }
       }
 
       return redirectSession;
