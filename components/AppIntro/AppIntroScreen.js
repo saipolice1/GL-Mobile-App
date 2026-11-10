@@ -40,10 +40,12 @@ async function prefetchAllProducts(queryClient) {
         .limit(100)
         .find();
       const items = response?.items || [];
-      if (!items.length) break;
+      // rawLength = unfiltered page size (tobacco filter), so paging doesn't stop early
+      const pageCount = response?.rawLength ?? items.length;
+      if (!pageCount) break;
       allItems = [...allItems, ...items];
       offset += 100;
-      if (items.length < 100 || allItems.length >= 1000) break;
+      if (pageCount < 100 || allItems.length >= 1000) break;
     }
     if (allItems.length > 0) {
       queryClient.setQueryData(['all-products'], allItems);

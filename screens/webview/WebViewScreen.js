@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { isBlockedWebUrl } from '../../utils/restrictedProducts';
 
 // Store URL from environment
 const STORE_URL = process.env.EXPO_PUBLIC_STORE_URL || 'https://www.graftonliquor.co.nz';
@@ -178,6 +179,8 @@ export const WebViewScreen = ({ navigation, route }) => {
         onLoadEnd={() => setIsLoading(false)}
         onLoadProgress={handleLoadProgress}
         onNavigationStateChange={handleNavigationStateChange}
+        // Don't browse to the website's store pages (tobacco policy)
+        onShouldStartLoadWithRequest={(request) => !isBlockedWebUrl(request.url)}
         onMessage={handleMessage}
         injectedJavaScript={injectedCSS}
         javaScriptEnabled={true}

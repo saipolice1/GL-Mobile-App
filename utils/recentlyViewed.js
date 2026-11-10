@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { filterProducts } from './restrictedProducts';
 
 const RECENTLY_VIEWED_KEY = '@recently_viewed_products';
 const MAX_RECENTLY_VIEWED = 10;
@@ -9,7 +10,7 @@ const MAX_RECENTLY_VIEWED = 10;
 export const getRecentlyViewed = async () => {
   try {
     const data = await AsyncStorage.getItem(RECENTLY_VIEWED_KEY);
-    return data ? JSON.parse(data) : [];
+    return data ? filterProducts(JSON.parse(data)) : [];
   } catch (error) {
     console.log('Error getting recently viewed:', error);
     return [];

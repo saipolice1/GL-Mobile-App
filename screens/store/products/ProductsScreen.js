@@ -35,7 +35,8 @@ export function ProductsScreen({ navigation, route }) {
           .find();
         const page = response?.items || [];
         allItems = [...allItems, ...page];
-        if (page.length < pageSize) break;
+        // rawLength = unfiltered page size (tobacco filter), so paging doesn't stop early
+        if ((response?.rawLength ?? page.length) < pageSize) break;
         offset += pageSize;
       }
       return allItems;
