@@ -1,2 +1,2 @@
 // Bump this string with each OTA update so you can confirm the update landed
-export const OTA_VERSION = '2026-07-16.2';
+export const OTA_VERSION = '2026-11-10.1';

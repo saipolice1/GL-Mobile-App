@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
+import { HIDE_TOBACCO, TOBACCO_COLLECTION_SLUGS } from '../../utils/restrictedProducts';
 
 // Category data with icons and sub-collections for sliders
-export const CATEGORIES_DATA = [
+const ALL_CATEGORIES = [
   { 
     id: 'trending', 
     name: 'Trending', 
@@ -178,6 +179,10 @@ export const CATEGORIES_DATA = [
     color: '#20B2AA',
   },
 ];
+
+export const CATEGORIES_DATA = HIDE_TOBACCO
+  ? ALL_CATEGORIES.filter((c) => !TOBACCO_COLLECTION_SLUGS.includes(c.slug))
+  : ALL_CATEGORIES;
 
 const CategoryIcon = ({ category }) => {
   // Trending stays at 50, Accessories reduced to 44

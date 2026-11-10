@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { filterProducts } from '../utils/restrictedProducts';
 
 const FAVORITES_KEY = '@grafton_favorites';
 
@@ -34,7 +35,7 @@ const notifyListeners = (favorites) => {
 export const getFavorites = async () => {
   try {
     const favoritesJson = await AsyncStorage.getItem(FAVORITES_KEY);
-    return favoritesJson ? JSON.parse(favoritesJson) : [];
+    return favoritesJson ? filterProducts(JSON.parse(favoritesJson)) : [];
   } catch (error) {
     console.error('Error getting favorites:', error);
     return [];
@@ -80,6 +81,7 @@ export const addToFavorites = async (product) => {
       discountedPrice: hasRealDiscount ? discountedPrice : '', // Only store if different
       image: product.media?.mainMedia?.image?.url || product.media?.items?.[0]?.image?.url || null,
       slug: product.slug,
+      collectionIds: product.collectionIds,
       inStock: inStock,
       stockQuantity: stockQuantity ?? null,
       addedAt: new Date().toISOString(),

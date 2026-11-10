@@ -270,12 +270,14 @@ export const SearchScreen = ({ navigation }) => {
             .find();
 
           const items = response?.items || [];
-          if (items.length === 0) break;
+          // rawLength = unfiltered page size (tobacco filter), so paging doesn't stop early
+          const pageCount = response?.rawLength ?? items.length;
+          if (pageCount === 0) break;
 
           allItems = [...allItems, ...items];
           offset += pageSize;
 
-          if (items.length < pageSize) break;
+          if (pageCount < pageSize) break;
           if (allItems.length >= 1000) break;
         }
 

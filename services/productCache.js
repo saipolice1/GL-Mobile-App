@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { filterProducts, filterCollections } from '../utils/restrictedProducts';
 
 const CACHE_KEY = 'CACHED_PRODUCTS';
 const CACHE_TIMESTAMP_KEY = 'CACHED_PRODUCTS_TIMESTAMP';
@@ -41,7 +42,7 @@ export async function getCachedProducts() {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     if (!cached) return null;
 
-    const products = JSON.parse(cached);
+    const products = filterProducts(JSON.parse(cached));
     console.log(`📦 Loaded ${products.length} products from cache (${Math.round(age / 60000)}min old)`);
     return products;
   } catch (error) {
@@ -82,7 +83,7 @@ export async function getCachedCollections() {
     const cached = await AsyncStorage.getItem(COLLECTIONS_CACHE_KEY);
     if (!cached) return null;
 
-    const collections = JSON.parse(cached);
+    const collections = filterCollections(JSON.parse(cached));
     console.log(`📦 Loaded ${collections.length} collections from cache`);
     return collections;
   } catch (error) {

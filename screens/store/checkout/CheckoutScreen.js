@@ -7,6 +7,7 @@ import { LoadingIndicator } from "../../../components/LoadingIndicator/LoadingIn
 import { styles } from "../../../styles/store/checkout/checkout-screen/styles";
 import { theme } from "../../../styles/theme";
 import Routes from "../../../routes/routes";
+import { isBlockedWebUrl } from "../../../utils/restrictedProducts";
 
 export function CheckoutScreen({ navigation, route }) {
   const { redirectSession, cameFrom } = route?.params || {};
@@ -199,6 +200,9 @@ true;
               navigation.navigate(Routes.Cart);
               return false; // block WebView from following the link
             }
+
+            // Don't let the checkout browse out to the website's store pages (tobacco policy)
+            if (isBlockedWebUrl(url)) return false;
 
             // Intercept the thank-you deep link after external payment (e.g. AfterPay).
             // When Wix redirects to the thankYouPageUrl (graftonliquor:// or exp:// in dev),

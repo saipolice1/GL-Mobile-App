@@ -152,13 +152,15 @@ export const HomeScreen = ({ navigation }) => {
               .find();
             
             const items = response?.items || [];
-            if (items.length === 0) break;
+            // rawLength = unfiltered page size (tobacco filter), so paging doesn't stop early
+            const pageCount = response?.rawLength ?? items.length;
+            if (pageCount === 0) break;
             
             allProducts = [...allProducts, ...items];
             offset += pageSize;
             
             // If we got less than pageSize, we've reached the end
-            if (items.length < pageSize) break;
+            if (pageCount < pageSize) break;
           }
           
           console.log(`Fetched ${allProducts.length} total products`);
