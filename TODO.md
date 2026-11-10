@@ -10,8 +10,14 @@ Keep this file up to date and pushed — Codespace-local notes are lost when a C
 - [x] Merged to `main`; OTA `v2026-11-10.1` published 2026-11-10 (group `f0f217a7`, runtime 1.0.18, android+ios)
 - [ ] Appeal: "I understand what led to this issue and will fix it" (after OTA) — then, if granted, upload new build
 - [ ] New Android production build (1.0.18, next versionCode) + submit to Play; deactivate versionCode 21 per Google's resubmit steps
+- [x] Checkout session fix (Sentry GL-MOBILE-APP-A, `SESSION_BY_ID_NOT_FOUND_OR_NOT_ACTIVE`) — OTA `2026-11-10.2`
 - [ ] Ask Google (appeal / Play Console help) whether the suspended listing can be restored or a new app is required
 - [ ] Merge hotfix into `release/1.0.19` too
+
+## ⏰ Wix checkout API deprecation — before 2027-02-01
+- [ ] Re-check Wix docs for the removal date of Cart V1 / Checkout V1 (`currentCart.*`, `checkout.*` used by cart + checkout)
+- [ ] Migrate cart/checkout to Cart V2 (`cartV2` / `currentCartV2`, already in installed @wix/ecom) — JS only, can ship as OTA
+- [ ] Consider hybrid native checkout at the same time (investigation report incomplete: payment must stay on Wix-hosted page)
 
 ## ✅ RESTORED and merged to `main` (2026-10-16)
 
@@ -55,6 +61,9 @@ Keep this file up to date and pushed — Codespace-local notes are lost when a C
 
 - [x] Restore all missing changes above first
 - [ ] Add `expo-blur` (native module — build only, not OTA) — real glass on the floating pill tab bar
+- [ ] Update Expo/React Native to latest SDK 54 patches (`npx expo install --fix`; e.g. expo 54.0.33 → 54.0.37) — Sentry GL-MOBILE-APP-E native crash `EXC_BAD_ACCESS` in `RuntimeScheduler_Modern::updateRendering` during background launch (iPhone 17 Pro Max, iOS 27.0.1, App Store 1.0.18+21, 2026-11-03, 1 event)
+- [ ] Make EAS build upload React Native dSYMs to Sentry (React.framework frames currently unsymbolicated: "ZTUM", "Unknown function")
+- [ ] Add session-not-active retry to product "Buy now" checkout (ProductScreen) — or fold into Cart V2 migration
 - [ ] Bump `app.json` version to 1.0.19 (new runtime; versionCode handled by EAS remote autoIncrement)
 - [ ] Test on a development build (not Expo Go) — `expo-dev-client` already added
   - [ ] Register iPhone: `npx eas-cli device:create` (iOS Stolen Device Protection may add a 1-hour security delay to installing the profile away from home/work)
